@@ -87,7 +87,7 @@ export class Game {
     this.player.audio = this.audio;
 
     this.retro.setDither(true, 6); // §7.9 포스터라이즈+디더 (FR-15)
-    this.clock = new THREE.Clock();
+    this._lastFrameAt = performance.now();
     this.retro.renderer.domElement.addEventListener('click', () => {
       if (this.state === 'playing') this.input.requestPointerLock();
     });
@@ -293,7 +293,9 @@ export class Game {
   // ── 프레임 루프 ────────────────────────────
 
   frame() {
-    const dt = Math.min(this.clock.getDelta(), 0.05);
+    const now = performance.now();
+    const dt = Math.min((now - this._lastFrameAt) / 1000, 0.05);
+    this._lastFrameAt = now;
 
     if (this.state === 'playing') {
       // 포인터록을 잃으면 일시정지
