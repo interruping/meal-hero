@@ -104,6 +104,7 @@ export class Game {
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;
     await this.obstacles.init();
+    this.attachVehicleVisual('run'); // 블록아웃 캡슐 제거 (AC-19)
     this.showTitle();
   }
 

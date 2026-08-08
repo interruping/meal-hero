@@ -12,4 +12,4 @@
 
 ## 폰트
 
-- (추가 예정 — 픽셀 한글 폰트 도입 시 기록)
+- [Galmuri11](https://github.com/quiple/galmuri) (갈무리11, 한글 픽셀 폰트) — SIL Open Font License 1.1
