@@ -1,0 +1,69 @@
+{
+  "results": [
+    {
+      "name": "vehicle-kickboard",
+      "prompt": "stand-up electric kick scooter with tall handlebar and flat deck, two small wheels, muted teal frame, chunky cute proportions, low poly, PS1 retro game style, muted desaturated colors",
+      "previewId": "019fe3ab-75c8-7812-bd46-1e731483d715",
+      "refineId": "019fe3ac-1ecf-7848-b5fd-e1fd257069e2",
+      "credits": 15
+    },
+    {
+      "name": "character-hero",
+      "prompt": "cartoon Korean delivery rider character, young man wearing baseball cap and windbreaker jacket, standing upright, short stubby legs and slightly big head, chunky cute proportions, low poly, PS1 retro game style, muted desaturated colors",
+      "previewId": "019fe3ab-75c9-7813-95d7-dd24d747ecb3",
+      "refineId": "019fe3ac-4737-7e11-b9ed-2239127396c4",
+      "credits": 15
+    },
+    {
+      "name": "prop-delivery-bag",
+      "prompt": "square insulated food delivery backpack bag, cube-shaped with top flap and shoulder straps, muted dark red fabric, chunky cute proportions, low poly, PS1 retro game style, muted desaturated colors",
+      "previewId": "019fe3ab-75c9-7df9-82c5-8d57462772c7",
+      "refineId": "019fe3ac-4826-782e-b737-85ba3944fc20",
+      "credits": 15
+    },
+    {
+      "name": "vehicle-bicycle",
+      "prompt": "city bicycle with front basket and rear rack, muted olive green frame, chunky cute proportions, low poly, PS1 retro game style, muted desaturated colors",
+      "previewId": "019fe3ad-1619-7870-a98f-66aa4594c936",
+      "refineId": "019fe3ad-bb99-7886-8ca4-7f94470b2c49",
+      "credits": 15
+    },
+    {
+      "name": "vehicle-scooter",
+      "prompt": "delivery moped scooter with big square delivery box on rear rack, muted light blue body, chunky cute proportions, low poly, PS1 retro game style, muted desaturated colors",
+      "previewId": "019fe3ad-b802-7cef-99a3-035c7513fc38",
+      "refineId": "019fe3ae-6008-7d03-8547-6757b2fa9894",
+      "credits": 15
+    },
+    {
+      "name": "obstacle-flyer-worker",
+      "prompt": "cartoon flyer distributor part-time worker, person wearing visor cap and sash, holding stack of paper flyers with one arm extended offering a flyer, chunky cute proportions, low poly, PS1 retro game style, muted desaturated colors",
+      "previewId": "019fe3ad-e521-7885-b23b-8c5f10f5a701",
+      "refineId": "019fe3ae-8acb-7d11-bb8e-13f67783387a",
+      "credits": 15
+    },
+    {
+      "name": "obstacle-kid-bike",
+      "prompt": "cartoon child riding a small bicycle, kid with tiny backpack leaning forward pedaling fast, single combined model of kid on bike, chunky cute proportions, low poly, PS1 retro game style, muted desaturated colors",
+      "previewId": "019fe3ae-dc4a-78a9-85c2-22154898abcb",
+      "refineId": "019fe3af-fd0d-7d38-97a4-cbee38961c99",
+      "credits": 15
+    },
+    {
+      "name": "obstacle-drunk",
+      "prompt": "cartoon drunk middle-aged office worker in rumpled gray suit with loosened red necktie, swaying stumbling pose holding small green bottle, red cheeks, chunky cute proportions, low poly, PS1 retro game style, muted desaturated colors",
+      "previewId": "019fe3af-a831-78db-99a1-64689a106894",
+      "refineId": "019fe3b0-4ef5-78d4-a16a-27cc76ee5ba4",
+      "credits": 15
+    },
+    {
+      "name": "obstacle-pigeon",
+      "prompt": "plump pigeon bird standing on ground, round fat body small head, muted gray purple feathers, chunky cute proportions, low poly, PS1 retro game style, muted desaturated colors",
+      "previewId": "019fe3af-7e8d-7e88-a7ac-afffc807c3ba",
+      "refineId": "019fe3b0-4f67-78f8-b1d4-7b9cb2336417",
+      "credits": 15
+    }
+  ],
+  "totalCredits": 135,
+  "failed": 0
+}
