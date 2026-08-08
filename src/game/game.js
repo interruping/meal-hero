@@ -13,6 +13,9 @@ import { VEHICLES } from './vehicles.js';
 import { loadModel } from '../core/loader.js';
 import { buildProps } from './props.js';
 import { tex } from './textures.js';
+import { AudioSys } from '../core/audio.js';
+
+const SAVE_KEY = 'mealhero-save-v1';
 
 const OPENING_LINES = [
   '2026년 봄. 사업이 망했다.',
@@ -55,26 +58,35 @@ export class Game {
     this.delivery = new DeliveryManager(this.world, this.player, this.scene, {
       onOrder: (o) => {
         this.ui.banner(`새 주문! <b>${o.shop.name}</b> → ${o.door.name}<br><span style="font-size:13px">보수 ₩${o.pay.toLocaleString()}</span>`, 2600);
+        this.audio.play('order');
       },
-      onPickedUp: () => this.ui.banner('픽업 완료! 배달 시작', 1500),
+      onPickedUp: () => {
+        this.ui.banner('픽업 완료! 배달 시작', 1500);
+        this.audio.play('pickup');
+      },
       onDelivered: (o) => {
         this.stage_.revenue += o.pay;
         this.career.revenue += o.pay;
         this.stage_.deliveries++;
         this.career.deliveries++;
         this.ui.banner(`배달 완료! +₩${o.pay.toLocaleString()}`, 1800);
+        this.audio.play('deliver');
         if (this.stage_.revenue >= this.stageCfg.goal) this.stageClear();
       },
       onExpired: () => {
         this.stage_.misses++;
         this.ui.toast(`배달 시간 초과! (${this.stage_.misses}/${MAX_MISSES})`, 2200);
+        this.audio.play('miss');
         if (this.stage_.misses >= MAX_MISSES) {
           this.gameOver('배달 시간 초과가 누적됐다. 고객 평점 바닥…');
         }
       },
     });
     this.obstacles = new ObstacleManager(this.world, this.scene, this.player, this);
+    this.audio = new AudioSys();
+    this.player.audio = this.audio;
 
+    this.retro.setDither(true, 6); // §7.9 포스터라이즈+디더 (FR-15)
     this.clock = new THREE.Clock();
     this.retro.renderer.domElement.addEventListener('click', () => {
       if (this.state === 'playing') this.input.requestPointerLock();
@@ -101,10 +113,37 @@ export class Game {
     this.state = 'title';
     this.ui.setHudVisible(false);
     this.input.exitPointerLock();
+    this.audio.stopBGM();
+    const save = this.loadSave();
     this.ui.showTitle({
       onStart: () => this.startOpening(),
       onStage: (n) => { this.resetCareer(); this.startStage(n); },
+      save,
+      onContinue: save
+        ? () => {
+            this.career = save.career;
+            this.startStage(save.nextStage);
+          }
+        : null,
     });
+  }
+
+  loadSave() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (typeof s.nextStage !== 'number' || s.nextStage < 1 || s.nextStage >= STAGES.length) return null;
+      return s;
+    } catch {
+      return null;
+    }
+  }
+
+  saveProgress() {
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify({ nextStage: this.stageIdx + 1, career: this.career }));
+    } catch { /* 저장 불가 환경 무시 */ }
   }
 
   resetCareer() {
@@ -136,6 +175,7 @@ export class Game {
       this.state = 'playing';
       this.ui.setHudVisible(true);
       this.input.requestPointerLock();
+      this.audio.startBGM(this.stageCfg.season);
     });
   }
 
@@ -188,9 +228,18 @@ export class Game {
     this.career.debt -= this.stageCfg.goal;
     this.input.exitPointerLock();
     this.ui.setHudVisible(false);
+    this.audio.stopBGM();
+    this.audio.play('clear');
     const isLast = this.stageIdx >= STAGES.length - 1;
+    if (isLast) {
+      try { localStorage.removeItem(SAVE_KEY); } catch { /* ignore */ }
+    } else {
+      this.saveProgress(); // FR-13 진행 저장
+    }
+    // FR-17 브릿지: 계절 전환 + 다음 탈것 안내
+    const nextVehicle = isLast ? null : VEHICLES[STAGES[this.stageIdx + 1].vehicle].label;
     this.ui.showClear(
-      { stage: this.stageCfg, revenue: this.stage_.revenue, deliveries: this.stage_.deliveries, isLast },
+      { stage: this.stageCfg, revenue: this.stage_.revenue, deliveries: this.stage_.deliveries, isLast, nextVehicle },
       () => (isLast ? this.showEnding() : this.startStage(this.stageIdx + 1)),
     );
   }
@@ -200,6 +249,8 @@ export class Game {
     this.state = 'gameover';
     this.input.exitPointerLock();
     this.ui.setHudVisible(false);
+    this.audio.stopBGM();
+    this.audio.play('gameover');
     this.ui.showGameOver(reason, () => this.retry());
   }
 
@@ -220,6 +271,7 @@ export class Game {
     this.stage_.hp -= n;
     this.career.hits++;
     this.cam.shake(0.5, 0.35);
+    this.audio.play('hit');
     if (this.stage_.hp <= 0) this.gameOver('체력이 바닥났다. 병원비가 더 나오게 생겼다…');
   }
 
@@ -231,6 +283,7 @@ export class Game {
         this.ui.pigeonFlash();
         this.cam.shake(0.8, 0.5);
         this.ui.toast('푸드덕!! 앞이 안 보인다');
+        this.audio.play('pigeon');
         break;
       case 'drunk': this.ui.toast('취객과 충돌! 조작이 반대로 꼬인다'); break;
     }

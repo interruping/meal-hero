@@ -2,7 +2,12 @@
 // 화면: 타이틀(FR-8), 오프닝(FR-7), 스테이지 인트로, 클리어/게임오버(FR-6), 엔딩(FR-16), HUD(FR-10)
 
 const CSS = `
-#ui { position: absolute; inset: 0; pointer-events: none; font-family: 'DungGeunMo', 'Galmuri11', monospace;
+@font-face {
+  font-family: 'Galmuri11';
+  src: url('fonts/Galmuri11.woff2') format('woff2');
+  font-display: swap;
+}
+#ui { position: absolute; inset: 0; pointer-events: none; font-family: 'Galmuri11', monospace;
   color: #3a3a38; user-select: none; overflow: hidden; }
 #ui * { box-sizing: border-box; }
 .mh-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
@@ -86,12 +91,15 @@ export class UI {
     return div;
   }
 
-  showTitle({ onStart, onStage }) {
+  showTitle({ onStart, onStage, save, onContinue }) {
+    const continueBtn = save
+      ? `<button class="mh-btn" id="btn-continue">이어하기 (STAGE ${save.nextStage + 1})</button>`
+      : '';
     const s = this.screen(`
       <div class="mh-panel">
         <h1 class="mh-title">MEAL HERO</h1>
         <p class="mh-sub">빚 4,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
-        <div style="margin-top:16px"><button class="mh-btn" id="btn-start">배달 시작</button></div>
+        <div style="margin-top:16px"><button class="mh-btn" id="btn-start">배달 시작</button>${continueBtn}</div>
         <div style="margin-top:14px" class="mh-controls">
           [W A S D] 이동 · [마우스] 시점 · [Space] 점프<br>
           [E] 픽업 / 전달 · [Shift] 스킬(탈것) · [R] 재시작(게임오버 시)
@@ -106,6 +114,7 @@ export class UI {
       </div>
     `);
     s.querySelector('#btn-start').addEventListener('click', onStart);
+    if (save && onContinue) s.querySelector('#btn-continue').addEventListener('click', onContinue);
     s.querySelectorAll('[data-stage]').forEach((b) =>
       b.addEventListener('click', () => onStage(Number(b.dataset.stage))));
   }
@@ -143,13 +152,17 @@ export class UI {
     s.querySelector('#btn-go').addEventListener('click', onGo);
   }
 
-  showClear({ stage, revenue, deliveries, isLast }, onNext) {
+  showClear({ stage, revenue, deliveries, isLast, nextVehicle }, onNext) {
+    const bridge = isLast
+      ? ''
+      : `<div class="mh-caption" style="margin:8px 0; font-size:16px">계절이 바뀐다… 새 이동 수단 <b>${nextVehicle}</b> 획득!</div>`;
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-title" style="font-size:30px">할당액 상환 완료!</div>
         <div class="mh-sub" style="margin:12px 0">
           ${stage.intro.split('—')[0].trim()} 매출 ₩${revenue.toLocaleString()} / 배달 ${deliveries}건
         </div>
+        ${bridge}
         <button class="mh-btn" id="btn-next">${isLast ? '엔딩 보기' : '다음 계절로'}</button>
       </div>
     `);

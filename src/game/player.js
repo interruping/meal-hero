@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { slopeFactor } from './heightfield.js';
 import { VEHICLES } from './vehicles.js';
+import { makeBlobShadow } from './shadow.js';
 
 const GRAVITY = 24;
 const RADIUS = 0.45;
@@ -32,6 +33,8 @@ export class Player {
     placeholder.name = 'placeholder';
     this.bodyHolder.add(placeholder);
     scene.add(this.rig);
+    this.shadow = makeBlobShadow(0.55);
+    scene.add(this.shadow);
   }
 
   setVehicle(key) {
@@ -75,6 +78,7 @@ export class Player {
     if (input.down('ShiftLeft') && this.time >= (this.skillReadyAt ?? 0) && hasInput) {
       this.skillActiveUntil = this.time + 1.8;
       this.skillReadyAt = this.time + 5;
+      this.audio?.play('skill');
     }
 
     // 목표 속도: 경사·페널티 반영
@@ -95,6 +99,7 @@ export class Player {
     if (this.grounded && input.justPressed('Space') && this.time >= this.stunnedUntil) {
       this.vel.y = v.jumpVel;
       this.grounded = false;
+      this.audio?.play('jump');
     }
     this.vel.y -= GRAVITY * dt;
 
@@ -123,6 +128,12 @@ export class Player {
       while (diff < -Math.PI) diff += Math.PI * 2;
       this.heading += diff * (1 - Math.exp(-v.turnRate * dt));
     }
+
+    // 블롭 섀도: 지면에 고정, 공중에 뜨면 축소 (§7.6)
+    const shadowY = this.world.groundHeight(this.pos.x, this.pos.z);
+    this.shadow.position.set(this.pos.x, shadowY + 0.05, this.pos.z);
+    const airGap = Math.min(this.pos.y - shadowY, 4);
+    this.shadow.scale.setScalar(Math.max(0.4, 1 - airGap * 0.15));
 
     // 비주얼 동기화 + 통짜 바운스 (§7.7 관절 애니메이션 최소)
     this.rig.position.copy(this.pos);
