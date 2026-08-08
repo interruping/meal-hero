@@ -11,6 +11,8 @@ import { ObstacleManager } from './obstacles.js';
 import { STAGES, MAX_HP, MAX_MISSES, TOTAL_DEBT } from './stages.js';
 import { VEHICLES } from './vehicles.js';
 import { loadModel } from '../core/loader.js';
+import { buildProps } from './props.js';
+import { tex } from './textures.js';
 
 const OPENING_LINES = [
   '2026년 봄. 사업이 망했다.',
@@ -46,6 +48,7 @@ export class Game {
     this.scene.add(this.sun);
 
     this.world = buildCity(this.scene);
+    this.props = buildProps(this.world, this.scene);
     this.applySeason('spring'); // 타이틀 배경도 팔레트 적용
     this.player = new Player(this.world, this.scene);
     this.cam = new FollowCamera();
@@ -166,10 +169,17 @@ export class Game {
     // 겨울 후반 어둑함 (§7.6)
     this.hemi.intensity = key === 'winter' ? 0.78 : 0.9;
     this.sun.intensity = key === 'winter' ? 0.18 : 0.25;
-    this.world.terrain.material.color.set(pal.ground);
-    this.world.root.getObjectByName('roads').children.forEach((m) => {
-      m.material.color.set(key === 'winter' ? pal.roadWet : pal.road);
+    // 계절 텍스처 교체 (FR-5): 지면·도로·나무
+    this.world.terrain.material.map = tex(`ground-${key}`);
+    this.world.terrain.material.needsUpdate = true;
+    this.world.roads.children.forEach((m) => {
+      m.material.map = tex(`road-${key}`);
+      m.material.needsUpdate = true;
     });
+    if (this.props) {
+      this.props.treeMat.map = tex(`tree-${key}`);
+      this.props.treeMat.needsUpdate = true;
+    }
   }
 
   stageClear() {
