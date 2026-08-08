@@ -26,8 +26,12 @@ const mat4 BAYER = mat4(
   15.0,  7.0, 13.0,  5.0
 );
 
+vec3 linearToSRGB(vec3 c) {
+  return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c));
+}
+
 void main() {
-  vec3 c = texture2D(tSource, vUv).rgb;
+  vec3 c = linearToSRGB(texture2D(tSource, vUv).rgb);
   if (uDither > 0.5) {
     ivec2 p = ivec2(mod(gl_FragCoord.xy, 4.0));
     float threshold = (BAYER[p.y][p.x] + 0.5) / 16.0 - 0.5;
@@ -52,7 +56,7 @@ export class RetroRenderer {
       magFilter: THREE.NearestFilter,
       depthBuffer: true,
     });
-    this.target.texture.colorSpace = THREE.SRGBColorSpace;
+    this.target.texture.colorSpace = THREE.LinearSRGBColorSpace;
 
     this.postScene = new THREE.Scene();
     this.postCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
