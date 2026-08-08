@@ -12,6 +12,13 @@ export class FollowCamera {
     this.height = 3;
     this.current = new THREE.Vector3();
     this.initialized = false;
+    this.shakeAmp = 0;
+    this.shakeTime = 0;
+  }
+
+  shake(intensity, duration) {
+    this.shakeAmp = Math.max(this.shakeAmp, intensity);
+    this.shakeTime = Math.max(this.shakeTime, duration);
   }
 
   update(dt, input, targetPos) {
@@ -33,6 +40,13 @@ export class FollowCamera {
       this.current.lerp(ideal, 1 - Math.exp(-8 * dt));
     }
     this.camera.position.copy(this.current);
+    if (this.shakeTime > 0) {
+      this.shakeTime -= dt;
+      const a = this.shakeAmp * Math.max(0, this.shakeTime);
+      this.camera.position.x += (Math.random() - 0.5) * a;
+      this.camera.position.y += (Math.random() - 0.5) * a;
+      if (this.shakeTime <= 0) this.shakeAmp = 0;
+    }
     this.camera.lookAt(targetPos.x, targetPos.y + 1.6, targetPos.z);
   }
 }

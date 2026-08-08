@@ -71,8 +71,15 @@ export class Player {
       dirZ = (ix * sin - iz * cos) / len;
     }
 
+    // Shift 스킬: 부스트 (쿨다운 5초, 지속 1.8초)
+    if (input.down('ShiftLeft') && this.time >= (this.skillReadyAt ?? 0) && hasInput) {
+      this.skillActiveUntil = this.time + 1.8;
+      this.skillReadyAt = this.time + 5;
+    }
+
     // 목표 속도: 경사·페널티 반영
     let maxSpeed = v.maxSpeed;
+    if (this.time < (this.skillActiveUntil ?? 0)) maxSpeed *= 1.5;
     if (this.time < this.speedPenaltyUntil) maxSpeed *= 0.45;
     if (hasInput) maxSpeed *= slopeFactor(this.pos.x, this.pos.z, dirX, dirZ);
 
