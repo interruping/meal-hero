@@ -7,15 +7,19 @@ import { tex, sharedMat } from './textures.js';
 // 전 교차로(5×5) 공통의 전역 주기 하나로 동기: 구현 단순 + "일제히 서는" 코믹 연출.
 // 행인은 차도에 내려서지 않으므로(§15.4) 신호 준수 대상은 차량뿐.
 //
+// §16.2 (FR-41) 교차로 신호 체계 — 전 교차로(5×5) 공통 주기, 축별 2페이즈 교차
+// (피드백 반영): 세로 골목이 녹색이면 가로지르는 가로 골목은 빨강 — 동시 점등 금지.
+// 보행등은 자기 횡단보도가 가로지르는 골목의 차량 신호와 반전 (그 골목 차가 서야 횡단 초록).
+// 행인은 차도에 내려서지 않으므로(§15.4) 신호 준수 대상은 차량뿐.
+//
 // 배치 원칙 (피드백 반영):
 // - 신호등 헤드는 Meshy 3D 모델 (텍스처 박스 금지 피드백): 차량등은 한국식
 //   가로형 3구 헤드를 5m 마스트+수평 암으로 차로 위에 매달고 양방향 각각
 //   정면 헤드(등을 맞댄 2기), 보행등은 세로 2칸 헤드를 별도 낮은 기둥에 축 정렬
 // - 등화 상태는 모델 소켓 위 자발광 오버레이(원반·픽토그램)의 가시성 토글 —
-//   베이크드 텍스처는 상태 전환이 불가하기 때문
+//   베이크드 텍스처는 상태 전환이 불가하기 때문. 렌즈면은 레이캐스트 실측 밀착
 // - 횡단보도·정지선은 도로와 같은 방식으로 지형에 정합(버텍스 스냅)
-export const CYCLE = 14; // 전체 주기 (초)
-export const PED_GREEN = 5; // 뒤쪽 5초가 보행 파란불 (차량 정지)
+export const CYCLE = 16; // 전체 주기: 앞 8초 세로(z축 주행) 녹색, 뒤 8초 가로(x축) 녹색
 export const STOP_OFF = ROAD_HALF + 2.6; // 교차로 중심 → 정지선 거리 (횡단보도 앞)
 
 const CROSS_OFF = ROAD_HALF + 1.15; // 횡단보도 중심 오프셋
@@ -62,11 +66,16 @@ export class Signals {
     this.pedLampZ = probe(this.pedTpl,
       [[0, this.pedSize.y * 0.76], [0, this.pedSize.y * 0.50]],
       this.pedSize.z * 0.3);
-    // 등화 오버레이 목록 (전역 상태 토글)
-    this.carRedL = [];
-    this.carGreenL = [];
-    this.pedStandL = []; // 빨강 서있는 사람 (보행 금지 = 차량 녹색일 때)
-    this.pedWalkL = []; // 초록 걷는 사람
+    // 등화 오버레이 목록 — 담당 골목 축('z'=세로 골목 주행 / 'x'=가로)별로 분리.
+    // ped는 "그 횡단보도가 가로지르는 골목"의 축으로 분류 (해당 축 차량 신호와 반전)
+    this.lampsByAxis = {
+      z: { red: [], green: [] },
+      x: { red: [], green: [] },
+    };
+    this.pedByAxis = {
+      z: { stand: [], walk: [] },
+      x: { stand: [], walk: [] },
+    };
 
     this.pedStandMat = new THREE.MeshBasicMaterial({ map: atlasHalf('prop-signal-ped', false) });
     this.pedWalkMat = new THREE.MeshBasicMaterial({ map: atlasHalf('prop-signal-ped', true) });
@@ -130,8 +139,8 @@ export class Signals {
   }
 
   // 차량등 헤드 유닛: Meshy 가로형 3구 모델 + 좌(적)/우(녹) 자발광 원반 오버레이.
-  // 로컬 전면 = +z 가정, 운전자 시점(전면에서 바라봄) 좌측이 빨강 — 한국 가로형 배열
-  carHeadUnit() {
+  // axis = 이 헤드가 담당하는 골목의 주행축. 운전자 시점 좌측이 빨강 (실측 확정)
+  carHeadUnit(axis) {
     const g = new THREE.Group();
     g.add(this.carTpl.clone(true));
     const W = this.carSize.x;
@@ -142,14 +151,14 @@ export class Signals {
       g.add(d);
       return d;
     };
-    // 운전자(전면에서 바라보는) 시점 좌측이 빨강 — 실측으로 부호 확정
-    this.carRedL.push(mk(this.lampRedMat, -W * 0.3, this.carLampZ[0]));
-    this.carGreenL.push(mk(this.lampGreenMat, W * 0.3, this.carLampZ[1]));
+    this.lampsByAxis[axis].red.push(mk(this.lampRedMat, -W * 0.3, this.carLampZ[0]));
+    this.lampsByAxis[axis].green.push(mk(this.lampGreenMat, W * 0.3, this.carLampZ[1]));
     return g;
   }
 
-  // 보행등 헤드 유닛: Meshy 세로 2칸 모델 + 위(빨강 서있는)/아래(초록 걷는) 픽토그램 오버레이
-  pedHeadUnit() {
+  // 보행등 헤드 유닛: Meshy 세로 2칸 모델 + 위(빨강 서있는)/아래(초록 걷는) 픽토그램 오버레이.
+  // crossAxis = 이 횡단보도가 가로지르는 골목의 주행축 (그 축 차량 신호와 반전)
+  pedHeadUnit(crossAxis) {
     const g = new THREE.Group();
     g.add(this.pedTpl.clone(true));
     const Hh = this.pedSize.y;
@@ -159,8 +168,8 @@ export class Signals {
       g.add(p);
       return p;
     };
-    this.pedStandL.push(mk(this.pedStandMat, Hh * 0.76, this.pedLampZ[0]));
-    this.pedWalkL.push(mk(this.pedWalkMat, Hh * 0.50, this.pedLampZ[1]));
+    this.pedByAxis[crossAxis].stand.push(mk(this.pedStandMat, Hh * 0.76, this.pedLampZ[0]));
+    this.pedByAxis[crossAxis].walk.push(mk(this.pedWalkMat, Hh * 0.50, this.pedLampZ[1]));
     return g;
   }
 
@@ -188,7 +197,7 @@ export class Signals {
 
     const bottomY = base + HEAD_H - this.carSize.y * 0.5;
     for (const side of [-1, 1]) {
-      const head = this.carHeadUnit();
+      const head = this.carHeadUnit(servesVertical ? 'z' : 'x');
       if (servesVertical) {
         head.position.set(cx + laneT, bottomY, pz + side * (this.carSize.z * 0.5 + 0.01));
         head.rotation.y = side > 0 ? 0 : Math.PI; // 전면(+z)이 바깥 → 양방향 정면
@@ -210,32 +219,42 @@ export class Signals {
     pole.position.set(px, base + 1.3, pz);
     this.group.add(pole);
     const bottomY = base + 2.62 - this.pedSize.y; // 헤드 상단을 기둥 꼭대기에 정렬
-    const h1 = this.pedHeadUnit(); // ±x 골목을 바라봄
+    // h1: x축을 따라 걷는 보행자를 바라봄 = 세로 골목('z' 주행)을 건너는 횡단보도 담당
+    const h1 = this.pedHeadUnit('z');
     h1.position.set(px - sx * 0.13, bottomY, pz);
     h1.rotation.y = sx > 0 ? -Math.PI / 2 : Math.PI / 2;
     this.group.add(h1);
-    const h2 = this.pedHeadUnit(); // ±z 골목을 바라봄
+    // h2: z축을 따라 걷는 보행자를 바라봄 = 가로 골목('x' 주행)을 건너는 횡단보도 담당
+    const h2 = this.pedHeadUnit('x');
     h2.position.set(px, bottomY, pz - sz * 0.13);
     h2.rotation.y = sz > 0 ? Math.PI : 0;
     this.group.add(h2);
   }
 
-  // 차량 진행 허용 여부 (traffic.js가 매 프레임 조회)
-  carsGo() {
-    return (this.time % CYCLE) < CYCLE - PED_GREEN;
+  // 축별 차량 진행 허용 여부 (traffic.js가 차량마다 자기 축으로 조회).
+  // 앞 반주기 = 세로('z') 녹색 / 가로('x') 빨강, 뒤 반주기 = 반전
+  carsGo(axis) {
+    const phaseZ = (this.time % CYCLE) < CYCLE / 2;
+    return axis === 'z' ? phaseZ : !phaseZ;
   }
 
-  applyState(go) {
-    this.lastState = go;
-    for (const m of this.carRedL) m.visible = !go;
-    for (const m of this.carGreenL) m.visible = go;
-    for (const m of this.pedStandL) m.visible = go;
-    for (const m of this.pedWalkL) m.visible = !go;
+  applyState(phaseZ) {
+    this.lastState = phaseZ;
+    for (const axis of ['z', 'x']) {
+      const go = axis === 'z' ? phaseZ : !phaseZ;
+      const lamps = this.lampsByAxis[axis];
+      for (const m of lamps.red) m.visible = !go;
+      for (const m of lamps.green) m.visible = go;
+      // 이 축 골목을 건너는 횡단보도: 그 골목 차가 달리는 동안 보행 금지
+      const peds = this.pedByAxis[axis];
+      for (const p of peds.stand) p.visible = go;
+      for (const p of peds.walk) p.visible = !go;
+    }
   }
 
   update(dt) {
     this.time += dt;
-    const now = this.carsGo();
+    const now = this.carsGo('z');
     if (now !== this.lastState) this.applyState(now);
   }
 }
