@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { terrainHeight } from './heightfield.js';
 import { tex, sharedMat } from './textures.js';
-import { STREETS, ROAD_HALF, SHOP_Z, MAP_HALF, STAIR_PASSAGES } from './citymap.js';
+import { STREETS, ROAD_HALF, SHOP_Z, MAP_HALF, STAIR_PASSAGES, SHOP_DEFS } from './citymap.js';
 
 // §7.10 장식 오브젝트 30종+ 배치. 전부 gpt-image-2 텍스처 사용 (단색 금지).
 // 반환: { group, seasonalTreeMats, typeCount }
@@ -232,16 +232,21 @@ export function buildProps(world, scene, M) {
   }
 
   // ── 12 돌출 간판 (상가 측면) — 넓은 양면만 간판, 나머지 금속 ──
+  // §14.2 사방 상가 위치 기준: 파사드 축으로 6.2m 비껴 벽면에 부착
   const signMat = sharedMat('prop-sign-vertical');
   for (let i = 0; i < 8; i++) {
-    const sx = -67 + i * 15 + 6.2;
-    const sz = SHOP_Z + 4;
+    const def = SHOP_DEFS[i];
+    const fx = Math.sin(def.yaw), fz = Math.cos(def.yaw); // 전면 법선
+    const ax = Math.cos(def.yaw), az = -Math.sin(def.yaw); // 파사드 축
+    const sx = def.x + ax * 6.2 + fx * 2;
+    const sz = def.z + az * 6.2 + fz * 2;
     const y = H(sx, sz);
     const sign = new THREE.Mesh(
       new THREE.BoxGeometry(0.15, 2.2, 0.7),
       [signMat, signMat, metalMat, metalMat, metalMat, metalMat],
     );
     sign.position.set(sx, y + 3.4, sz);
+    sign.rotation.y = def.yaw;
     add('돌출간판', sign);
   }
 
@@ -315,9 +320,12 @@ export function buildProps(world, scene, M) {
     }
   }
 
-  // ── 22 배달 상자 더미 (상가 뒤) ──
+  // ── 22 배달 상자 더미 (상가 입구 옆 — §14.2 사방 상가 대응) ──
   for (let i = 0; i < 6; i++) {
-    place('배달상자', 'boxes', -60 + i * 22, SHOP_Z + 11);
+    const def = SHOP_DEFS[i];
+    const fx = Math.sin(def.yaw), fz = Math.cos(def.yaw);
+    const ax = Math.cos(def.yaw), az = -Math.sin(def.yaw);
+    place('배달상자', 'boxes', def.x - ax * 5 + fx * 5.3, def.z - az * 5 + fz * 5.3);
   }
 
   // ── 23 고양이 ──

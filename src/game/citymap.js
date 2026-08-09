@@ -32,17 +32,28 @@ const VILLA_TYPES = [
   { tex: 'villa-12', floors: 2 },
 ];
 
-const SHOP_DEFS = [
-  { tex: 'shop-chicken', name: '치킨집' },
-  { tex: 'shop-chinese', name: '중국집' },
-  { tex: 'shop-bunsik', name: '분식집' },
-  { tex: 'shop-convenience', name: '편의점' },
-  { tex: 'shop-pizza', name: '피자집' },
-  { tex: 'shop-jokbal', name: '족발집' },
-  { tex: 'shop-cafe', name: '카페' },
-  { tex: 'shop-dosirak', name: '도시락집' },
-  { tex: 'shop-tteokbokki', name: '떡볶이집' },
-  { tex: 'shop-burger', name: '버거집' },
+// §14.2 상가 사방 재배치 (FR-28): 동·서·남·북 가장자리에 분산 배치.
+// yaw는 전면(+z)이 마을 안쪽을 향하게. 좌표는 격자 도로(±33·0·±66) 침범 회피
+export const SHOP_DEFS = [
+  { tex: 'shop-chicken', name: '치킨집', x: -45, z: 82, yaw: Math.PI }, // 북
+  { tex: 'shop-chinese', name: '중국집', x: -15, z: 82, yaw: Math.PI },
+  { tex: 'shop-bunsik', name: '분식집', x: 15, z: 82, yaw: Math.PI },
+  { tex: 'shop-convenience', name: '편의점', x: 82, z: -15, yaw: -Math.PI / 2 }, // 동
+  { tex: 'shop-pizza', name: '피자집', x: 82, z: 15, yaw: -Math.PI / 2 },
+  { tex: 'shop-jokbal', name: '족발집', x: -15, z: -82, yaw: 0 }, // 남
+  { tex: 'shop-cafe', name: '카페', x: 15, z: -82, yaw: 0 },
+  { tex: 'shop-dosirak', name: '도시락집', x: 45, z: -82, yaw: 0 },
+  { tex: 'shop-tteokbokki', name: '떡볶이집', x: -82, z: -15, yaw: Math.PI / 2 }, // 서
+  { tex: 'shop-burger', name: '버거집', x: -82, z: 15, yaw: Math.PI / 2 },
+];
+
+// §14.2 구멍가게 4곳 (FR-28): 빌라 블록 셀을 대체하는 소형 단독 가게.
+// 좌표는 빌라 2×2 셀 중심과 일치해야 한다 (셀 간격: 도로선 +9.75 / +23.25)
+const CORNER_SHOPS = [
+  { tex: 'shop-super', name: '동네슈퍼A', x: -56.25, z: -23.25 },
+  { tex: 'shop-baekban', name: '백반집A', x: 56.25, z: -42.75 },
+  { tex: 'shop-super', name: '동네슈퍼B', x: -42.75, z: 56.25 },
+  { tex: 'shop-baekban', name: '백반집B', x: 9.75, z: 23.25 },
 ];
 
 function makeCollider(mesh, pad = 0) {
@@ -105,7 +116,11 @@ function buildRoads() {
     group.add(roadStrip(s, 0, ROAD_HALF * 2, MAP_HALF * 2, true));
     group.add(roadStrip(0, s, ROAD_HALF * 2, MAP_HALF * 2, false));
   }
+  // §14.2 사방 상가 접근로 (북·남 가로 + 동·서 세로)
   group.add(roadStrip(0, SHOP_Z - 3, 10, 150, false));
+  group.add(roadStrip(0, -(SHOP_Z - 3), 10, 150, false));
+  group.add(roadStrip(SHOP_Z - 3, 0, 10, 150, true));
+  group.add(roadStrip(-(SHOP_Z - 3), 0, 10, 150, true));
   return group;
 }
 
@@ -155,6 +170,33 @@ function buildVilla(cx, cz, faceDir /* +1: 동쪽(+x), -1: 서쪽(-x) */) {
   };
 }
 
+// §14.2 구멍가게: 빌라 셀 자리에 들어가는 소형 단독 가게 (전면 간판 텍스처)
+function buildCornerShop(def, cx, cz, faceDir) {
+  const w = 7, d = 6, h = 3.4;
+  const corners = [
+    terrainHeight(cx - w / 2, cz - d / 2), terrainHeight(cx + w / 2, cz - d / 2),
+    terrainHeight(cx - w / 2, cz + d / 2), terrainHeight(cx + w / 2, cz + d / 2),
+  ];
+  const base = Math.min(...corners) - 0.25;
+  const side = sharedMat('villa-side-2');
+  const roof = sharedMat('shared-concrete', { repeatX: 2, repeatY: 2 });
+  const front = sharedMat(def.tex);
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    [side, side, roof, roof, front, side],
+  );
+  body.position.set(cx, base + h / 2, cz);
+  body.rotation.y = faceDir > 0 ? Math.PI / 2 : -Math.PI / 2; // 전면(+z)이 골목쪽
+  body.userData.buildingType = def.tex;
+  const group = new THREE.Group();
+  group.add(body);
+  const fx = cx + faceDir * (d / 2 + 1.2);
+  return {
+    group, body,
+    front: new THREE.Vector3(fx, terrainHeight(fx, cz), cz),
+  };
+}
+
 export function buildCity(scene) {
   villaSeq = 0;
   const root = new THREE.Group();
@@ -191,8 +233,19 @@ export function buildCity(scene) {
           const cx = x0 + (x1 - x0) * (0.25 + ui * 0.5);
           const cz = z0 + (z1 - z0) * (0.25 + uj * 0.5);
           if (stair && Math.abs(cx - stair.x) < 7) continue;
-          if (rng() < 0.08) continue; // 공터
+          const isEmpty = rng() < 0.08; // rng 소비 순서 유지 (맵 결정성)
           const faceDir = ui === 0 ? -1 : 1; // 바깥 골목쪽 현관
+          // §14.2 구멍가게 셀: 빌라 대신 소형 가게 (공터 여부 무관 — 반드시 생성)
+          const corner = CORNER_SHOPS.find((c) => Math.abs(c.x - cx) < 2 && Math.abs(c.z - cz) < 2);
+          if (corner) {
+            const shop = buildCornerShop(corner, cx, cz, faceDir);
+            root.add(shop.group);
+            colliders.push(makeCollider(shop.body));
+            buildingMeshes.push(shop.body);
+            shops.push({ pos: shop.front, name: corner.name });
+            continue;
+          }
+          if (isEmpty) continue; // 공터
           const villa = buildVilla(cx, cz, faceDir);
           root.add(villa.group);
           colliders.push(makeCollider(villa.body));
@@ -235,27 +288,26 @@ export function buildCity(scene) {
     }
   }
 
-  // 남쪽 상가 (픽업 지점): 전면 간판 텍스처
+  // 상가 (픽업 지점): 사방 가장자리 배치 (§14.2) — 전면 간판 텍스처
   const shopSide = sharedMat('villa-side-2');
   const shopRoof = sharedMat('shared-concrete', { repeatX: 2, repeatY: 2 });
-  for (let i = 0; i < SHOP_DEFS.length; i++) {
-    const def = SHOP_DEFS[i];
-    const sx = -67 + i * 15;
-    const sz = SHOP_Z + 6;
-    const y = terrainHeight(sx, sz);
+  for (const def of SHOP_DEFS) {
+    const y = terrainHeight(def.x, def.z);
     const front = sharedMat(def.tex);
     const shop = new THREE.Mesh(
       new THREE.BoxGeometry(12, 4.6, 8),
       [shopSide, shopSide, shopRoof, shopRoof, front, shopSide],
     );
-    shop.position.set(sx, y + 2.3 - 0.4, sz);
-    shop.rotation.y = Math.PI; // 전면이 -z(마을쪽)
+    shop.position.set(def.x, y + 2.3 - 0.4, def.z);
+    shop.rotation.y = def.yaw; // 회전 후 +z(전면)가 마을 안쪽
     shop.userData.buildingType = def.tex;
     root.add(shop);
     colliders.push(makeCollider(shop));
     buildingMeshes.push(shop);
-    const frontZ = sz - 4.7;
-    shops.push({ pos: new THREE.Vector3(sx, terrainHeight(sx, frontZ), frontZ), name: def.name });
+    // 전면 4.7m 앞이 픽업 지점
+    const fx = def.x + Math.sin(def.yaw) * 4.7;
+    const fz = def.z + Math.cos(def.yaw) * 4.7;
+    shops.push({ pos: new THREE.Vector3(fx, terrainHeight(fx, fz), fz), name: def.name });
   }
 
   // 외곽 경계 담 (벽돌 텍스처)
