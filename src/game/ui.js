@@ -27,6 +27,9 @@ const CSS = `
 .mh-btn:hover { background: #7a7a76; }
 .mh-btn.primary { background: #b5372f; border-color: #7e2620; font-weight: bold; }
 .mh-btn.primary:hover { background: #c9463d; }
+/* §16.5 (FR-44) 세로 스택 버튼 열: 글자 수와 무관하게 전부 동일 폭 */
+.btn-col { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.btn-col .mh-btn { width: 280px; margin: 0; box-sizing: border-box; }
 .mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block;
   word-break: keep-all; }
 .mh-controls b { color: #b5372f; } /* §15.3 키 이름 악센트 */
@@ -530,7 +533,7 @@ export class UI {
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-title" style="font-size:26px">일시 정지</div>
-        <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px; align-items:center">
+        <div class="btn-col" style="margin-top:14px">
           <button class="mh-btn primary" id="btn-resume">계속하기</button>
           <button class="mh-btn" id="btn-restart">스테이지 재시작</button>
           <button class="mh-btn" id="btn-menu">메인 메뉴로 돌아가기</button>
