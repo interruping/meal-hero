@@ -147,6 +147,7 @@ export class Game {
       vending: 1.9, hydrant: 0.75, bench: 0.85, pyeongsang: 0.5, trashpile: 0.85,
       planter: 0.5, mailbox: 0.9, streetlamp: 4.6, pole: 7.5, boxes: 1.1,
       parasol: 2.4, laundry: 1.4, cat: 0.45, railing: 1.05,
+      'signal-car': 0.5, 'signal-ped': 0.8, // §16.2 신호등 헤드 (Meshy — 텍스처 박스 교체 피드백)
     };
     const propEntries = await Promise.all(
       Object.entries(PROP_HEIGHTS).map(async ([k, h]) => [k, await loadModel(`prop3d-${k}`, h)]),
@@ -154,8 +155,12 @@ export class Game {
     this.props = buildProps(this.world, this.scene, Object.fromEntries(propEntries));
     // 차량은 소품 뒤에 배치 — 소품 풋프린트(world.propBoxes)와 겹침 회피
     placeParkedVehicles(this.world, this.scene, { sedan: parkedSedan, truck: parkedTruck });
-    // §16.2 (FR-41) 교차로 신호 — 횡단보도·정지선·신호등, 전역 주기
-    this.signals = new Signals(this.scene);
+    // §16.2 (FR-41) 교차로 신호 — 횡단보도·정지선·신호등(Meshy 헤드), 전역 주기
+    const propModels = Object.fromEntries(propEntries);
+    this.signals = new Signals(this.scene, {
+      car: propModels['signal-car'],
+      ped: propModels['signal-ped'],
+    });
     // §15.4 (FR-36) 차도 주행 차량 — 주차 차량과 같은 Meshy 모델 재사용
     this.traffic = new Traffic(this.scene, this.world, { sedan: parkedSedan, truck: parkedTruck },
       (car, fx, fz) => this.onCarHit(fx, fz), this.signals);
