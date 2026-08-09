@@ -46,6 +46,12 @@ const CSS = `
 .offer-slot .key { display: inline-block; background: #3a3a38; color: #efeeea; font-size: 12px;
   padding: 0 5px; margin-right: 4px; }
 .offer-slot .o-pay { color: #b5372f; }
+/* FR-29 (§14.3) 플레이어→가게 거리 + 최근접 뱃지 */
+.offer-slot .o-dist { float: right; color: #4a4a46; }
+.offer-slot .o-near { position: absolute; top: -9px; right: -5px; background: #b5372f;
+  color: #efeeea; font-size: 10px; padding: 1px 5px; border: 1px solid #efeeea;
+  box-shadow: 2px 2px 0 rgba(58,58,56,0.45); display: none; }
+.offer-slot.nearest .o-near { display: block; }
 .offer-slot .o-ttl { height: 5px; background: #c6c2b4; border: 1px solid #3a3a38; margin-top: 3px; }
 .offer-slot .o-ttl i { display: block; height: 100%; background: #4f6d8f; }
 .offer-slot.empty { opacity: 0.45; }
@@ -166,8 +172,9 @@ export class UI {
         <div id="hud-offers">${[1, 2, 3, 4].map((n) => `
           <div class="offer-slot empty" data-slot="${n}">
             <span class="key">${n}</span><span class="o-route">의뢰 대기</span><br>
-            <span class="o-pay"></span>
+            <span class="o-pay"></span><span class="o-dist"></span>
             <div class="o-ttl"><i></i></div>
+            <span class="o-near">제일 가까운</span>
           </div>`).join('')}
         </div>
         <div id="hud-active"></div>
@@ -405,19 +412,30 @@ export class UI {
       `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
     clock.classList.toggle('low', stageTimeLeft <= 60);
 
-    // 의뢰 슬롯 4개 (FR-19)
+    // 의뢰 슬롯 4개 (FR-19) + 플레이어→가게 거리·최근접 뱃지 (FR-29 §14.3)
     if (!this._slotEls) this._slotEls = [...this.root.querySelectorAll('.offer-slot')];
+    let nearestIdx = -1;
+    let nearestDist = Infinity;
+    const dists = offers.map((offer, i) => {
+      if (!offer || !playerPos) return null;
+      const d = Math.hypot(playerPos.x - offer.shop.pos.x, playerPos.z - offer.shop.pos.z);
+      if (d < nearestDist) { nearestDist = d; nearestIdx = i; } // 동률은 앞 슬롯 우선
+      return d;
+    });
     offers.forEach((offer, i) => {
       const el = this._slotEls[i];
       el.classList.toggle('empty', !offer);
       el.classList.toggle('blocked', !!offer && full);
+      el.classList.toggle('nearest', i === nearestIdx);
       if (offer) {
         el.querySelector('.o-route').textContent = `${offer.shop.name} → ${offer.door.name}`;
         el.querySelector('.o-pay').textContent = `₩${offer.pay.toLocaleString()}`;
+        el.querySelector('.o-dist').textContent = dists[i] != null ? `${Math.round(dists[i])}m` : '';
         el.querySelector('.o-ttl i').style.width = `${(offer.ttl / OFFER_TTL) * 100}%`;
       } else {
         el.querySelector('.o-route').textContent = '의뢰 대기';
         el.querySelector('.o-pay').textContent = '';
+        el.querySelector('.o-dist').textContent = '';
       }
     });
 
