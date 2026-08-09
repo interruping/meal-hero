@@ -33,6 +33,20 @@ const MODELS = [
   { name: 'obstacle-kid-bike', polycount: 3000, prompt: `cartoon child riding a small bicycle, kid with tiny backpack leaning forward pedaling fast, single combined model of kid on bike, ${STYLE}` },
   { name: 'obstacle-pigeon', polycount: 800, prompt: `plump pigeon bird standing on ground, round fat body small head, muted gray purple feathers, ${STYLE}` },
   { name: 'obstacle-drunk', polycount: 3000, prompt: `cartoon drunk middle-aged office worker in rumpled gray suit with loosened red necktie, swaying stumbling pose holding small green bottle, red cheeks, ${STYLE}` },
+  // 2차: 소품 3D 교체 (박스+텍스처 품질 미달)
+  { name: 'prop3d-vending', polycount: 1200, prompt: `Korean drink vending machine, red and white, rows of canned drinks behind glass front, ${STYLE}` },
+  { name: 'prop3d-hydrant', polycount: 800, prompt: `red fire hydrant with side caps, slightly faded paint, ${STYLE}` },
+  { name: 'prop3d-bench', polycount: 900, prompt: `old public bench with wooden slats and green metal frame, ${STYLE}` },
+  { name: 'prop3d-pyeongsang', polycount: 900, prompt: `Korean low wooden platform bench (pyeongsang) with slatted top and short legs, worn wood, ${STYLE}` },
+  { name: 'prop3d-trashpile', polycount: 1200, prompt: `pile of stuffed garbage bags, white and pale green plastic bags stacked, ${STYLE}` },
+  { name: 'prop3d-planter', polycount: 900, prompt: `clay flower pot with small leafy green plant, humble street pot, ${STYLE}` },
+  { name: 'prop3d-mailbox', polycount: 1000, prompt: `small green metal apartment mailbox unit with numbered slots, ${STYLE}` },
+  { name: 'prop3d-streetlamp', polycount: 900, prompt: `gray street lamp post with single arm and rectangular lamp head, ${STYLE}` },
+  { name: 'prop3d-pole', polycount: 1000, prompt: `weathered concrete utility pole with wooden crossarm and small transformer drum, ${STYLE}` },
+  { name: 'prop3d-boxes', polycount: 900, prompt: `stack of white styrofoam delivery boxes and brown cardboard boxes, ${STYLE}` },
+  { name: 'prop3d-parasol', polycount: 900, prompt: `market parasol umbrella with faded blue and white stripes on pole, ${STYLE}` },
+  { name: 'prop3d-laundry', polycount: 1200, prompt: `metal laundry drying rack with hanging white shirts and towels, ${STYLE}` },
+  { name: 'prop3d-cat', polycount: 900, prompt: `orange tabby street cat sitting upright, cute, ${STYLE}` },
 ];
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
