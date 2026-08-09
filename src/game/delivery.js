@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { DELIVERY_PAY } from './stages.js';
 
 // FR-19 다중 배달 (§12.1): 상단 의뢰 슬롯 4개 — 랜덤 노출, 10초 미수락 시 소멸,
 // 1~4 키 수락, 동시 진행 최대 3건. 제한 시간은 수락 시점의
@@ -72,12 +73,12 @@ export class DeliveryManager {
     return gap * 2 + Math.random() * 6;
   }
 
-  spawnOffer(i, vehicle) {
+  spawnOffer(i) {
     const shop = this.world.shops[Math.floor(Math.random() * this.world.shops.length)];
     const door = this.world.doors[Math.floor(Math.random() * this.world.doors.length)];
     const dist = shop.pos.distanceTo(door.pos);
-    const pay = Math.round((300_000 + dist * 3_000) * vehicle.incomeMult / 10_000) * 10_000;
-    this.slots[i] = { id: ++this._seq, shop, door, dist, pay, ttl: OFFER_TTL };
+    // §12.3 건당 고정 보수 — 속도 상승 = 처리량 상승이 수입 증가를 만든다
+    this.slots[i] = { id: ++this._seq, shop, door, dist, pay: DELIVERY_PAY, ttl: OFFER_TTL };
   }
 
   acceptSlot(i, vehicle) {
@@ -151,7 +152,7 @@ export class DeliveryManager {
         }
       } else {
         this.slotCooldown[i] -= dt;
-        if (this.slotCooldown[i] <= 0) this.spawnOffer(i, vehicle);
+        if (this.slotCooldown[i] <= 0) this.spawnOffer(i);
       }
     }
 

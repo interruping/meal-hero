@@ -145,7 +145,7 @@ export class UI {
     const s = this.screen(`
       <div class="mh-panel">
         <h1 class="mh-title">MEAL HERO</h1>
-        <p class="mh-sub">빚 4,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
+        <p class="mh-sub">빚 2,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
         <div style="margin-top:16px"><button class="mh-btn" id="btn-start">배달 시작</button>${continueBtn}</div>
         <div style="margin-top:14px" class="mh-controls">
           [W A S D] 이동 · [마우스] 시점 · [Space] 점프<br>
@@ -187,27 +187,31 @@ export class UI {
     show();
   }
 
-  showStageIntro(stage, vehicleLabel, onGo) {
+  showStageIntro(stage, vehicleLabel, debt, onGo) {
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-sub">STAGE ${stage.id}</div>
         <div class="mh-caption" style="margin:10px 0">${stage.intro}</div>
-        <div class="mh-sub">이동 수단: ${vehicleLabel} · 목표 상환액: ₩${stage.goal.toLocaleString()}</div>
+        <div class="mh-sub">이동 수단: ${vehicleLabel} · 남은 빚 ₩${debt.toLocaleString()} · 제한 시간 10분</div>
         <div style="margin-top:14px"><button class="mh-btn" id="btn-go">출발</button></div>
       </div>
     `);
     s.querySelector('#btn-go').addEventListener('click', onGo);
   }
 
-  showClear({ stage, revenue, deliveries, isLast, nextVehicle }, onNext) {
+  // §12.4 정산: 10분 순수익 × 120일 = 스테이지 매출 → 빚 탕감
+  showSettlement({ stage, revenue, fees, net, days, settlement, debtBefore, debtAfter, deliveries, isLast, nextVehicle }, onNext) {
     const bridge = isLast
       ? ''
       : `<div class="mh-caption" style="margin:8px 0; font-size:16px">계절이 바뀐다… 새 이동 수단 <b>${nextVehicle}</b> 획득!</div>`;
     const s = this.screen(`
       <div class="mh-panel">
-        <div class="mh-title" style="font-size:30px">할당액 상환 완료!</div>
-        <div class="mh-sub" style="margin:12px 0">
-          ${stage.intro.split('—')[0].trim()} 매출 ₩${revenue.toLocaleString()} / 배달 ${deliveries}건
+        <div class="mh-title" style="font-size:28px">${stage.intro.split('—')[0].trim()} 분기 정산</div>
+        <div class="mh-caption" style="margin:12px 0; font-size:16px; line-height:2">
+          배달 ${deliveries}건 · 매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br>
+          10분 순수익 ₩${net.toLocaleString()} × ${days}일<br>
+          = 분기 매출 <b>₩${settlement.toLocaleString()}</b><br>
+          빚 ₩${debtBefore.toLocaleString()} → <b style="color:#b5372f">₩${debtAfter.toLocaleString()}</b>
         </div>
         ${bridge}
         <button class="mh-btn" id="btn-next">${isLast ? '엔딩 보기' : '다음 계절로'}</button>
@@ -227,21 +231,36 @@ export class UI {
     s.querySelector('#btn-retry').addEventListener('click', onRetry);
   }
 
-  showEnding(career, onTitle) {
+  // §12.4 엔딩 분기: 완납 = 해피 / 잔액 = 배드 (겨울 재도전 제공)
+  showEnding(career, onTitle, onRetryWinter) {
+    const paid = !career.debtLeft;
+    const head = paid
+      ? '<div class="mh-title" style="font-size:30px">빚 완납!</div>'
+      : '<div class="mh-title" style="font-size:30px; color:#b5372f">빚이… 남았다</div>';
+    const body = paid
+      ? `1년간의 배달 대장정 끝에 빚 ₩${career.totalDebt.toLocaleString()}을 모두 갚았다.`
+      : `1년을 꼬박 달렸지만 빚이 ₩${career.debtLeft.toLocaleString()} 남았다.<br>사장님이 겨울 한 분기를 더 뛰어보라며 어깨를 두드린다…`;
+    const tail = paid
+      ? '<div class="mh-sub">주인공은 이제… 자기 가게를 차리기로 했다. 아마도.</div>'
+      : '';
+    const retryBtn = onRetryWinter
+      ? '<button class="mh-btn" id="btn-retry-winter">겨울 재도전</button>'
+      : '';
     const s = this.screen(`
       <div class="mh-panel">
-        <div class="mh-title" style="font-size:30px">빚 완납!</div>
+        ${head}
         <div class="mh-caption" style="margin:12px 0; font-size:16px; line-height:2">
-          1년간의 배달 대장정 끝에 빚 ₩${career.debt.toLocaleString()}을 모두 갚았다.<br>
+          ${body}<br>
           총 배달: ${career.deliveries}건<br>
           총 수입: ₩${career.revenue.toLocaleString()}<br>
           충돌 사고: ${career.hits}회
         </div>
-        <div class="mh-sub">주인공은 이제… 자기 가게를 차리기로 했다. 아마도.</div>
-        <div style="margin-top:14px"><button class="mh-btn" id="btn-title">타이틀로</button></div>
+        ${tail}
+        <div style="margin-top:14px">${retryBtn}<button class="mh-btn" id="btn-title">타이틀로</button></div>
       </div>
     `);
     s.querySelector('#btn-title').addEventListener('click', onTitle);
+    if (onRetryWinter) s.querySelector('#btn-retry-winter').addEventListener('click', onRetryWinter);
   }
 
   showPause({ onResume, onRestart, onMenu }) {
@@ -263,9 +282,9 @@ export class UI {
 
   setHudVisible(v) { this.hud.style.display = v ? 'block' : 'none'; if (!v) this.hideHint(); }
 
-  updateHUD({ revenue, goal, hp, maxHp, stageLabel, vehicleLabel, offers, active, full }) {
+  updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full }) {
     this.el('#hud-money').innerHTML =
-      `매출 ₩${revenue.toLocaleString()}<br>목표 ₩${goal.toLocaleString()}`;
+      `매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br>순수익 ₩${(revenue - fees).toLocaleString()}`;
     // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
     if (hp !== this._lastHp) {
       this._lastHp = hp;

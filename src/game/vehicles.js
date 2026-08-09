@@ -9,7 +9,6 @@ export const VEHICLES = {
     brakeRate: 12,
     turnRate: 14,
     jumpVel: 8,
-    incomeMult: 1,
   },
   kickboard: {
     label: '킥보드',
@@ -19,7 +18,6 @@ export const VEHICLES = {
     brakeRate: 7,
     turnRate: 9,
     jumpVel: 8,
-    incomeMult: 2,
   },
   bicycle: {
     label: '자전거',
@@ -29,7 +27,6 @@ export const VEHICLES = {
     brakeRate: 5,
     turnRate: 6.5,
     jumpVel: 8.5,
-    incomeMult: 3,
   },
   scooter: {
     label: '스쿠터',
@@ -39,6 +36,5 @@ export const VEHICLES = {
     brakeRate: 4,
     turnRate: 5,
     jumpVel: 9,
-    incomeMult: 4,
   },
 };
