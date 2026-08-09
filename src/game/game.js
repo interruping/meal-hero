@@ -11,7 +11,7 @@ import { ObstacleManager } from './obstacles.js';
 import { STAGES, MAX_HP, MAX_MISSES, TOTAL_DEBT } from './stages.js';
 import { VEHICLES } from './vehicles.js';
 import { loadModel } from '../core/loader.js';
-import { buildProps } from './props.js';
+import { buildProps, placeParkedVehicles } from './props.js';
 import { tex } from './textures.js';
 import { AudioSys } from '../core/audio.js';
 import { setupWalkAnimation, addOutline } from './walkanim.js';
@@ -95,13 +95,16 @@ export class Game {
   }
 
   async init() {
-    const [hero, bag, kickboard, bicycle, scooter] = await Promise.all([
+    const [hero, bag, kickboard, bicycle, scooter, parkedSedan, parkedTruck] = await Promise.all([
       loadModel('character-hero', 1.6),
       loadModel('prop-delivery-bag', 0.55),
       loadModel('vehicle-kickboard', 1.05),
       loadModel('vehicle-bicycle', 1.1),
       loadModel('vehicle-scooter', 1.15),
+      loadModel('prop-parked-sedan', 1.4),
+      loadModel('prop-parked-truck', 1.9),
     ]);
+    placeParkedVehicles(this.world, this.scene, { sedan: parkedSedan, truck: parkedTruck });
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;
     // 실루엣 아웃라인 (배경 분리) + 주인공 걷기 애니메이션
