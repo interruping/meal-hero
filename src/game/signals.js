@@ -45,6 +45,23 @@ export class Signals {
     this.pedTpl = models.ped;
     this.carSize = new THREE.Box3().setFromObject(models.car).getSize(new THREE.Vector3());
     this.pedSize = new THREE.Box3().setFromObject(models.ped).getSize(new THREE.Vector3());
+    // 등화 오버레이를 bbox 전면(차양 끝)이 아니라 실제 렌즈 표면에 밀착 —
+    // 소켓 위치로 -z 레이캐스트해 표면 z를 실측 (차양 돌출 때문에 bbox는 뜬다)
+    const probe = (tpl, pts, fallback) => {
+      tpl.updateMatrixWorld(true);
+      const rc = new THREE.Raycaster();
+      return pts.map(([x, y]) => {
+        rc.set(new THREE.Vector3(x, y, 10), new THREE.Vector3(0, 0, -1));
+        const hit = rc.intersectObject(tpl, true)[0];
+        return (hit ? hit.point.z : fallback) + 0.012;
+      });
+    };
+    this.carLampZ = probe(this.carTpl,
+      [[-this.carSize.x * 0.3, this.carSize.y * 0.5], [this.carSize.x * 0.3, this.carSize.y * 0.5]],
+      this.carSize.z * 0.2);
+    this.pedLampZ = probe(this.pedTpl,
+      [[0, this.pedSize.y * 0.76], [0, this.pedSize.y * 0.50]],
+      this.pedSize.z * 0.3);
     // 등화 오버레이 목록 (전역 상태 토글)
     this.carRedL = [];
     this.carGreenL = [];
@@ -119,16 +136,15 @@ export class Signals {
     g.add(this.carTpl.clone(true));
     const W = this.carSize.x;
     const Hh = this.carSize.y;
-    const D = this.carSize.z;
-    const mk = (mat, dx) => {
+    const mk = (mat, dx, z) => {
       const d = new THREE.Mesh(this.geo.lamp, mat);
-      d.position.set(dx, Hh * 0.5, D / 2 + 0.015);
+      d.position.set(dx, Hh * 0.5, z);
       g.add(d);
       return d;
     };
     // 운전자(전면에서 바라보는) 시점 좌측이 빨강 — 실측으로 부호 확정
-    this.carRedL.push(mk(this.lampRedMat, -W * 0.3));
-    this.carGreenL.push(mk(this.lampGreenMat, W * 0.3));
+    this.carRedL.push(mk(this.lampRedMat, -W * 0.3, this.carLampZ[0]));
+    this.carGreenL.push(mk(this.lampGreenMat, W * 0.3, this.carLampZ[1]));
     return g;
   }
 
@@ -137,15 +153,14 @@ export class Signals {
     const g = new THREE.Group();
     g.add(this.pedTpl.clone(true));
     const Hh = this.pedSize.y;
-    const D = this.pedSize.z;
-    const mk = (mat, hy) => {
+    const mk = (mat, hy, z) => {
       const p = new THREE.Mesh(this.geo.pict, mat);
-      p.position.set(0, hy, D / 2 + 0.015);
+      p.position.set(0, hy, z);
       g.add(p);
       return p;
     };
-    this.pedStandL.push(mk(this.pedStandMat, Hh * 0.76));
-    this.pedWalkL.push(mk(this.pedWalkMat, Hh * 0.50));
+    this.pedStandL.push(mk(this.pedStandMat, Hh * 0.76, this.pedLampZ[0]));
+    this.pedWalkL.push(mk(this.pedWalkMat, Hh * 0.50, this.pedLampZ[1]));
     return g;
   }
 
