@@ -227,6 +227,36 @@ export class Game {
     });
   }
 
+  // 배달가방을 히어로 가슴 본에 부착 — 정적 부착은 두리번·달리기 애니메이션과
+  // 몸이 따로 놀아 가방이 어긋나 보임(피드백). 본에 달면 상체를 그대로 따라간다.
+  mountBagToSpine() {
+    if (this._bagMount || !this.heroAnim) return;
+    const inst = this.heroAnim.model;
+    let bone = null, boneY = -Infinity;
+    const v = new THREE.Vector3();
+    this.heroAnim.mixer.update(0);
+    inst.updateMatrixWorld(true);
+    inst.traverse((o) => {
+      if (o.isBone && /spine|chest/i.test(o.name)) {
+        o.getWorldPosition(v);
+        if (v.y > boneY) { boneY = v.y; bone = o; }
+      }
+    });
+    if (!bone) return;
+    // 원하는 가방 위치(래퍼 공간 0,0.68,-0.26)를 본 로컬로 변환해 마운트 생성
+    const desired = new THREE.Matrix4()
+      .multiplyMatrices(inst.matrixWorld, new THREE.Matrix4().makeTranslation(0, 0.68, -0.26));
+    const m = new THREE.Matrix4().copy(bone.matrixWorld).invert().multiply(desired);
+    const mount = new THREE.Group();
+    m.decompose(mount.position, mount.quaternion, mount.scale);
+    bone.add(mount);
+    const bag = this.models.bag;
+    bag.position.set(0, 0, 0);
+    bag.rotation.set(0, 0, 0);
+    mount.add(bag);
+    this._bagMount = mount;
+  }
+
   attachVehicleVisual(vehicleKey) {
     const holder = this.player.bodyHolder;
     holder.clear();
@@ -236,9 +266,15 @@ export class Game {
       hero.rotation.x = 0;
       holder.add(hero);
       const bag = this.models.bag;
-      bag.position.set(0, 0.75, -0.3);
-      holder.add(bag);
+      if (this.heroAnim) {
+        this.mountBagToSpine();
+        bag.visible = true;
+      } else {
+        bag.position.set(0, 0.75, -0.3);
+        holder.add(bag);
+      }
     } else {
+      if (this._bagMount) this.models.bag.visible = false;
       const vehicle = this.models[vehicleKey];
       vehicle.position.set(0, 0, 0);
       holder.add(vehicle);
