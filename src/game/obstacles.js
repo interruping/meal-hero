@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { loadModel } from '../core/loader.js';
 import { makeBlobShadow } from './shadow.js';
+import { addOutline } from './walkanim.js';
 
 // FR-4 방해요소 4종 (§6 사양). 스테이지 누적 등장 + 밀도 소폭 상승.
 
@@ -233,6 +234,10 @@ export class ObstacleManager {
     this.protoKid = await loadModel('obstacle-kid-bike', 1.35);
     this.protoPigeon = await loadModel('obstacle-pigeon', 0.32);
     this.protoDrunk = await loadModel('obstacle-drunk', 1.7);
+    // 실루엣 아웃라인 (블롭 섀도보다 먼저 — 섀도 평면은 헐 제외)
+    for (const proto of [this.protoFlyer, this.protoKid, this.protoPigeon, this.protoDrunk]) {
+      addOutline(proto);
+    }
     // 블롭 섀도 부착 (비둘기는 생략)
     for (const [proto, r] of [[this.protoFlyer, 0.5], [this.protoKid, 0.6], [this.protoDrunk, 0.5]]) {
       const s = makeBlobShadow(r);

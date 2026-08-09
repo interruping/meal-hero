@@ -14,6 +14,7 @@ import { loadModel } from '../core/loader.js';
 import { buildProps } from './props.js';
 import { tex } from './textures.js';
 import { AudioSys } from '../core/audio.js';
+import { setupWalkAnimation, addOutline } from './walkanim.js';
 
 const SAVE_KEY = 'mealhero-save-v1';
 
@@ -54,7 +55,7 @@ export class Game {
     this.props = buildProps(this.world, this.scene);
     this.applySeason('spring'); // 타이틀 배경도 팔레트 적용
     this.player = new Player(this.world, this.scene);
-    this.cam = new FollowCamera();
+    this.cam = new FollowCamera(this.world);
     this.delivery = new DeliveryManager(this.world, this.player, this.scene, {
       onOrder: (o) => {
         this.ui.banner(`새 주문! <b>${o.shop.name}</b> → ${o.door.name}<br><span style="font-size:13px">보수 ₩${o.pay.toLocaleString()}</span>`, 2600);
@@ -103,6 +104,10 @@ export class Game {
     ]);
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;
+    // 실루엣 아웃라인 (배경 분리) + 주인공 걷기 애니메이션
+    for (const m of Object.values(this.models)) addOutline(m);
+    this.walkRig = setupWalkAnimation(hero);
+    this.player.onWalkUpdate = (phase, amp) => this.walkRig.set(phase, amp);
     await this.obstacles.init();
     this.attachVehicleVisual('run'); // 블록아웃 캡슐 제거 (AC-19)
     this.showTitle();
