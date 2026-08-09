@@ -24,6 +24,7 @@ import { setupWalkAnimation, addOutline } from './walkanim.js';
 import { NavMap } from './navmap.js';
 import { ArrowGuide } from './arrow.js';
 import { Traffic } from './traffic.js';
+import { Signals } from './signals.js';
 
 const SAVE_KEY = 'mealhero-save-v2'; // §12 경제 개편으로 세이브 포맷 리셋
 
@@ -153,9 +154,11 @@ export class Game {
     this.props = buildProps(this.world, this.scene, Object.fromEntries(propEntries));
     // 차량은 소품 뒤에 배치 — 소품 풋프린트(world.propBoxes)와 겹침 회피
     placeParkedVehicles(this.world, this.scene, { sedan: parkedSedan, truck: parkedTruck });
+    // §16.2 (FR-41) 교차로 신호 — 횡단보도·정지선·신호등, 전역 주기
+    this.signals = new Signals(this.scene);
     // §15.4 (FR-36) 차도 주행 차량 — 주차 차량과 같은 Meshy 모델 재사용
     this.traffic = new Traffic(this.scene, this.world, { sedan: parkedSedan, truck: parkedTruck },
-      (car, fx, fz) => this.onCarHit(fx, fz));
+      (car, fx, fz) => this.onCarHit(fx, fz), this.signals);
     this.applySeason('spring');
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;
@@ -753,7 +756,8 @@ export class Game {
       this.updateHeroAnim(dt);
       this.updateHitFlash();
       this.peds?.update(dt);
-      // §15.4 차량은 상시 주행, 충돌 판정은 플레이 중에만
+      // §15.4 차량은 상시 주행, 충돌 판정은 플레이 중에만. §16.2 신호 주기 상시 순환
+      this.signals?.update(dt);
       this.traffic?.update(dt, this.player, this.state === 'playing');
     }
 
