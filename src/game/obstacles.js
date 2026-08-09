@@ -2,44 +2,107 @@ import * as THREE from 'three';
 import { loadModel } from '../core/loader.js';
 import { makeBlobShadow } from './shadow.js';
 import { addOutline } from './walkanim.js';
+import { sharedMat } from './textures.js';
 
 // FR-4 방해요소 4종 (§6 사양). 스테이지 누적 등장 + 밀도 소폭 상승.
 
 const STREETS = [-66, -33, 0, 33, 66];
 
-// 전단지 배포 알바생: 고정 위치, 접근 시 전단지 들이밀기 → 이동 속도 감소
+// 전단지 배포 알바생: 접근하면 전단지를 "발사"한다 — 맞으면 이동 속도 감소 (§6 판정 소형)
 class FlyerWorker {
-  constructor(model, pos, game) {
+  constructor(model, pos, game, throwPaper) {
     this.model = model;
     this.pos = pos;
     this.game = game;
-    this.cooldown = 0;
+    this.throwPaper = throwPaper;
+    this.throwCooldown = Math.random() * 1.5;
     model.position.copy(pos);
     this.baseRot = Math.random() * Math.PI * 2;
     model.rotation.y = this.baseRot;
     this.time = Math.random() * 10;
+    this.windup = 0; // 던지기 직전 젖히기 연출
   }
 
   update(dt, player) {
     this.time += dt;
-    this.cooldown -= dt;
+    this.throwCooldown -= dt;
     const d = player.pos.distanceTo(this.pos);
-    if (d < 6) {
-      // 플레이어 쪽으로 몸 돌리며 들이밀기
+    if (d < 9) {
+      // 플레이어 조준
       this.model.rotation.y = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
-      const lunge = Math.max(0, Math.sin(this.time * 6)) * 0.35;
-      this.model.position.copy(this.pos);
-      this.model.position.x += Math.sin(this.model.rotation.y) * lunge;
-      this.model.position.z += Math.cos(this.model.rotation.y) * lunge;
-      if (d < 1.6 && this.cooldown <= 0) {
-        this.cooldown = 3;
-        player.applySlowdown(1.6);
-        this.game.onObstacleHit('flyer', { slow: true });
+      if (this.throwCooldown <= 0 && d > 1.2) {
+        this.throwCooldown = 1.4;
+        this.windup = 0.22;
+        const origin = this.pos.clone();
+        origin.y += 1.35;
+        origin.x += Math.sin(this.model.rotation.y) * 0.45;
+        origin.z += Math.cos(this.model.rotation.y) * 0.45;
+        this.throwPaper(origin, player);
       }
+      // 던지는 모션: 몸 젖혔다 앞으로 확
+      this.windup = Math.max(0, this.windup - dt);
+      this.model.rotation.x = this.windup > 0.1 ? -0.35 : this.windup > 0 ? 0.3 : 0;
+      this.model.position.copy(this.pos);
     } else {
       this.model.rotation.y = this.baseRot;
+      this.model.rotation.x = 0;
       this.model.position.copy(this.pos);
       this.model.position.y = this.pos.y + Math.abs(Math.sin(this.time * 2)) * 0.03;
+    }
+  }
+}
+
+// 날아가는 전단지 발사체 풀
+class PaperPool {
+  constructor(scene, game, size = 14) {
+    this.game = game;
+    const mat = sharedMat('flyer-paper');
+    mat.side = THREE.DoubleSide;
+    this.papers = Array.from({ length: size }, () => {
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.3), mat);
+      m.visible = false;
+      scene.add(m);
+      return { mesh: m, vel: new THREE.Vector3(), life: 0, spin: 0 };
+    });
+  }
+
+  throwAt(origin, player) {
+    const p = this.papers.find((x) => x.life <= 0);
+    if (!p) return;
+    // 예측 조준 + 약간 위로 아치
+    const target = player.pos.clone().addScaledVector(player.vel, 0.25);
+    target.y += 1.1;
+    const dir = target.sub(origin);
+    const dist = dir.length();
+    dir.normalize();
+    p.mesh.position.copy(origin);
+    p.vel.copy(dir).multiplyScalar(Math.min(11, 7 + dist * 0.5));
+    p.vel.y += 2.2;
+    p.life = 1.6;
+    p.spin = 8 + Math.random() * 6;
+    p.mesh.visible = true;
+  }
+
+  update(dt, player) {
+    for (const p of this.papers) {
+      if (p.life <= 0) continue;
+      p.life -= dt;
+      p.vel.y -= 5.5 * dt; // 종이라 가볍게 낙하
+      p.vel.multiplyScalar(1 - 0.6 * dt); // 공기 저항
+      p.mesh.position.addScaledVector(p.vel, dt);
+      p.mesh.rotation.x += p.spin * dt;
+      p.mesh.rotation.y += p.spin * 0.7 * dt;
+      // 명중 판정 (소형)
+      const dx = p.mesh.position.x - player.pos.x;
+      const dy = p.mesh.position.y - (player.pos.y + 1);
+      const dz = p.mesh.position.z - player.pos.z;
+      if (dx * dx + dy * dy + dz * dz < 0.55 * 0.55) {
+        p.life = 0;
+        p.mesh.visible = false;
+        player.applySlowdown(1.6);
+        this.game.onObstacleHit('flyer', {});
+      }
+      if (p.life <= 0) p.mesh.visible = false;
     }
   }
 }
@@ -206,7 +269,7 @@ class Drunk {
 }
 
 const INTRO_LINES = {
-  flyer: '전단지 알바생 등장! 가까이 가면 전단지를 받느라 느려진다',
+  flyer: '전단지 알바생 등장! 날아오는 전단지에 맞으면 느려진다 — 피해라',
   kid: '브레이크 없는 자전거 초딩! 부딪히면 넘어진다 — 경로를 읽어라',
   pigeon: '비둘기 무리! 놀라면 날아올라 시야를 가린다',
   drunk: '취객 등장… 부딪히면 조작이 꼬인다',
@@ -252,6 +315,12 @@ export class ObstacleManager {
     this.kids = [];
     this.flocks = [];
     this.drunks = [];
+    if (this.paperPool) {
+      for (const p of this.paperPool.papers) {
+        p.life = 0;
+        p.mesh.visible = false;
+      }
+    }
   }
 
   introBanner(type) {
@@ -281,10 +350,11 @@ export class ObstacleManager {
         const z = x === t ? s + 2 : t;
         spots.push(new THREE.Vector3(x, this.world.groundHeight(x, z), z));
       }
+      if (!this.paperPool) this.paperPool = new PaperPool(this.scene, this.game);
       for (const p of spots) {
         const m = this.protoFlyer.clone(true);
         this.group.add(m);
-        this.flyers.push(new FlyerWorker(m, p, this.game));
+        this.flyers.push(new FlyerWorker(m, p, this.game, (o, pl) => this.paperPool.throwAt(o, pl)));
       }
       this.introBanner('flyer');
     }
@@ -341,6 +411,7 @@ export class ObstacleManager {
   update(dt) {
     const p = this.player;
     for (const f of this.flyers) f.update(dt, p);
+    this.paperPool?.update(dt, p);
     if (this.kids.length) {
       this.kidSpawnTimer -= dt;
       if (this.kidSpawnTimer <= 0) {
