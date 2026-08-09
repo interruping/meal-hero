@@ -116,7 +116,15 @@ export function buildProps(world, scene, M) {
 
   // ── 3 가로등 ──
   for (const sz of [-33, 33]) {
-    for (let x = -70; x <= 70; x += 38) {
+    for (let xBase = -70; xBase <= 70; xBase += 38) {
+      // 세로 골목 노면 위에 서는 것 방지 — 도로에 걸치면 가장자리로 밀어냄
+      let x = xBase;
+      for (const s of STREETS) {
+        if (Math.abs(x - s) < ROAD_HALF + 1) {
+          x = s + (x >= s ? 1 : -1) * (ROAD_HALF + 1.2);
+          break;
+        }
+      }
       const pz = sz + ROAD_HALF + 0.6;
       const y = H(x, pz);
       place('가로등', 'streetlamp', x, pz, Math.PI);
