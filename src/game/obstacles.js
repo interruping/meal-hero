@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { loadModel, loadAnimated, instantiateAnimated, addSkinnedOutline } from '../core/loader.js';
+import { loadModel, loadAnimated, instantiateAnimated, addSkinnedOutline, inflateHead } from '../core/loader.js';
 import { makeBlobShadow } from './shadow.js';
 import { addOutline } from './walkanim.js';
 import { sharedMat } from './textures.js';
@@ -331,6 +331,8 @@ export class ObstacleManager {
 
   async init() {
     this.protoFlyer = await loadModel('obstacle-flyer-worker', 1.65);
+    // 주인공 대비 얼굴 비중 소폭 부족 — 머리 영역 버텍스 확대로 가분수 강화 (크레딧 0)
+    inflateHead(this.protoFlyer, 1.3, 0.66, 1.65);
     this.protoKid = await loadModel('obstacle-kid-bike', 1.35);
     this.protoPigeon = await loadModel('obstacle-pigeon', 0.32);
     this.protoDrunk = await loadModel('obstacle-drunk', 1.7);
