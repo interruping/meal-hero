@@ -366,7 +366,8 @@ export function buildCity(scene) {
     villas,
     stairPassages: STAIR_PASSAGES,
     groundHeight: terrainHeight,
-    spawn: new THREE.Vector3(0, terrainHeight(0, 70), 70),
+    // §16.1 (FR-39) 시작 위치 차도 금지 — x=0 골목 동측 인도 위 (차선 |x|<1.9 밖)
+    spawn: new THREE.Vector3(WALK_MID, terrainHeight(WALK_MID, 70), 70),
     rng,
   };
 }
