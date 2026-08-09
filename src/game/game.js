@@ -6,7 +6,7 @@ import { PALETTES, FOG_NEAR, FOG_FAR } from './palettes.js';
 import { buildCity } from './citymap.js';
 import { Player } from './player.js';
 import { FollowCamera } from './camera.js';
-import { DeliveryManager, DeliveryPhase } from './delivery.js';
+import { DeliveryManager, MAX_ACTIVE, DELIVERY_COLORS_CSS } from './delivery.js';
 import { ObstacleManager } from './obstacles.js';
 import { STAGES, MAX_HP, MAX_MISSES, TOTAL_DEBT } from './stages.js';
 import { VEHICLES } from './vehicles.js';
@@ -73,26 +73,29 @@ export class Game {
     };
     this.cam = new FollowCamera(this.world);
     this.delivery = new DeliveryManager(this.world, this.player, this.scene, {
-      onOrder: (o) => {
-        this.ui.banner(`새 주문! <b>${o.shop.name}</b> → ${o.door.name}<br><span style="font-size:13px">보수 ₩${o.pay.toLocaleString()}</span>`, 2600);
+      onAccept: (d) => {
+        this.ui.toast(`의뢰 수락! ${d.shop.name} → ${d.door.name}`, 1400);
         this.audio.play('order');
       },
-      onPickedUp: () => {
-        this.ui.banner('픽업 완료! 배달 시작', 1500);
+      onFull: () => this.ui.toast('가방이 가득! 동시 배달은 3건까지', 1400),
+      // FR-24 수령 코드 매칭이 여기 끼어든다 (현재는 즉시 확정)
+      onPickupRequest: (d) => this.delivery.confirmPickup(d),
+      onPickedUp: (d) => {
+        this.ui.banner(`픽업 완료! <b>${d.door.name}</b>으로`, 1400);
         this.audio.play('pickup');
       },
-      onDelivered: (o) => {
-        this.stage_.revenue += o.pay;
-        this.career.revenue += o.pay;
+      onDelivered: (d) => {
+        this.stage_.revenue += d.pay;
+        this.career.revenue += d.pay;
         this.stage_.deliveries++;
         this.career.deliveries++;
-        this.ui.banner(`배달 완료! +₩${o.pay.toLocaleString()}`, 1800);
+        this.ui.banner(`배달 완료! +₩${d.pay.toLocaleString()}`, 1800);
         this.audio.play('deliver');
         if (this.stage_.revenue >= this.stageCfg.goal) this.stageClear();
       },
-      onExpired: () => {
+      onExpired: (d) => {
         this.stage_.misses++;
-        this.ui.toast(`배달 시간 초과! (${this.stage_.misses}/${MAX_MISSES})`, 2200);
+        this.ui.toast(`${d.door.name} 배달 시간 초과! (${this.stage_.misses}/${MAX_MISSES})`, 2200);
         this.audio.play('miss');
         if (this.stage_.misses >= MAX_MISSES) {
           this.gameOver('배달 시간 초과가 누적됐다. 고객 평점 바닥…');
@@ -237,7 +240,7 @@ export class Game {
     this.player.slippery = !!this.stageCfg.slippery;
     this.player.reset();
     this.attachVehicleVisual(this.stageCfg.vehicle);
-    this.delivery.reset();
+    this.delivery.reset(this.stageCfg);
     this.obstacles.setup(this.stageCfg);
     this.cam.initialized = false;
     this.state = 'intro';
@@ -486,7 +489,7 @@ export class Game {
       } else {
         this._hadLock = locked;
         this.player.update(dt, this.input, this.cam.yaw);
-        this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle);
+        this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle, { acceptKeys: true });
         this.obstacles.update(dt);
         this.updateHUD();
       }
@@ -514,16 +517,6 @@ export class Game {
 
   updateHUD() {
     const d = this.delivery;
-    let timer = null;
-    if (d.phase === DeliveryPhase.CARRY) {
-      timer = {
-        text: `배달까지 ${Math.ceil(d.timeLeft)}초`,
-        ratio: d.timeLeft / d.order.limit,
-        low: d.timeLeft < 8,
-      };
-    } else if (d.phase === DeliveryPhase.PICKUP) {
-      timer = { text: `${d.order.shop.name}에서 픽업`, ratio: 1, low: false };
-    }
     this.ui.updateHUD({
       revenue: this.stage_.revenue,
       goal: this.stageCfg.goal,
@@ -531,24 +524,28 @@ export class Game {
       maxHp: MAX_HP,
       stageLabel: `STAGE ${this.stageCfg.id} · ${PALETTES[this.stageCfg.season].name}`,
       vehicleLabel: VEHICLES[this.stageCfg.vehicle].label,
-      timer,
+      offers: d.slots,
+      active: d.active,
+      full: d.active.length >= MAX_ACTIVE,
     });
 
-    const target = d.targetPos();
-    if (target) {
+    // 화살표: 가장 급박한 진행 건 방향 (해당 배달 색)
+    const urgent = d.urgent();
+    if (urgent) {
+      const target = d.targetOf(urgent);
       const worldAngle = Math.atan2(target.x - this.player.pos.x, target.z - this.player.pos.z);
       let rel = worldAngle - this.cam.yaw;
       while (rel > Math.PI) rel -= Math.PI * 2;
       while (rel < -Math.PI) rel += Math.PI * 2;
-      this.ui.setArrow(-rel, true);
-      const dist = this.player.pos.distanceTo(target);
-      if (dist < 4) {
-        this.ui.showHint(d.phase === DeliveryPhase.PICKUP ? '[E] 픽업' : '[E] 전달');
-      } else {
-        this.ui.hideHint();
-      }
+      this.ui.setArrow(-rel, true, DELIVERY_COLORS_CSS[urgent.colorIdx]);
     } else {
       this.ui.setArrow(0, false);
+    }
+
+    const near = d.nearestInteractable();
+    if (near) {
+      this.ui.showHint(near.phase === 'pickup' ? `[E] ${near.shop.name} 픽업` : `[E] ${near.door.name} 전달`);
+    } else {
       this.ui.hideHint();
     }
   }

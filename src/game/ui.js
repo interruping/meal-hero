@@ -1,5 +1,6 @@
 // §7.8 UI: 픽셀 폰트 + 단순 사각 패널. DOM 오버레이 방식.
 // 화면: 타이틀(FR-8), 오프닝(FR-7), 스테이지 인트로, 클리어/게임오버(FR-6), 엔딩(FR-16), HUD(FR-10)
+import { DELIVERY_COLORS_CSS, OFFER_TTL } from './delivery.js';
 
 const CSS = `
 @font-face {
@@ -29,14 +30,33 @@ const CSS = `
   padding: 8px 12px; font-size: 17px; box-shadow: 3px 3px 0 rgba(58,58,56,0.45); }
 #hud-money { top: 12px; left: 12px; line-height: 1.55; }
 #hud-hp { top: 12px; right: 12px; font-size: 22px; letter-spacing: 2px; color: #b5372f; }
-#hud-timer { top: 12px; left: 50%; transform: translateX(-50%); text-align: center; min-width: 220px; }
-#hud-timer .bar { height: 10px; background: #c6c2b4; margin-top: 5px; border: 1px solid #3a3a38; }
-#hud-timer .fill { height: 100%; background: #4f6d8f; width: 100%; }
-#hud-timer.low .fill { background: #b5372f; }
 #hud-stage { bottom: 12px; left: 12px; font-size: 15px; }
+/* FR-19 의뢰 슬롯 4개 (상단 중앙) */
+#hud-offers { position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 6px; }
+.offer-slot { width: 150px; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
+  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); padding: 4px 6px 5px; font-size: 12px;
+  line-height: 1.35; position: relative; }
+.offer-slot .key { display: inline-block; background: #3a3a38; color: #efeeea; font-size: 12px;
+  padding: 0 5px; margin-right: 4px; }
+.offer-slot .o-pay { color: #b5372f; }
+.offer-slot .o-ttl { height: 5px; background: #c6c2b4; border: 1px solid #3a3a38; margin-top: 3px; }
+.offer-slot .o-ttl i { display: block; height: 100%; background: #4f6d8f; }
+.offer-slot.empty { opacity: 0.45; }
+.offer-slot.empty .o-ttl { visibility: hidden; }
+.offer-slot.blocked { filter: grayscale(1); opacity: 0.6; }
+/* FR-19 진행 중 배달 목록 (좌측, 매출 패널 아래) */
+#hud-active { position: absolute; top: 86px; left: 12px; display: flex;
+  flex-direction: column; gap: 5px; }
+.active-row { background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
+  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); padding: 4px 8px; font-size: 13px;
+  display: flex; align-items: center; gap: 6px; min-width: 210px; }
+.active-row .dot { width: 10px; height: 10px; flex: none; border: 1px solid #3a3a38; }
+.active-row .a-sec { margin-left: auto; }
+.active-row.low .a-sec { color: #b5372f; font-weight: bold; }
 #hud-hint { bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 19px; display: none;
   background: #3a3a38; color: #efeeea; border-color: #efeeea; }
-#hud-arrow { position: absolute; top: 76px; left: 50%; width: 40px; height: 40px; margin-left: -20px;
+#hud-arrow { position: absolute; top: 86px; left: 50%; width: 40px; height: 40px; margin-left: -20px;
   font-size: 36px; color: #b5372f; text-align: center; line-height: 40px;
   text-shadow: 2px 2px 0 #efeeea, -1px -1px 0 #efeeea; }
 #hud-banner { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;
@@ -83,7 +103,14 @@ export class UI {
     this.root.innerHTML = `
       <div id="hud">
         <div id="hud-money" class="hud-panel"></div>
-        <div id="hud-timer" class="hud-panel"><span id="hud-timer-text">주문 대기 중…</span><div class="bar"><div class="fill"></div></div></div>
+        <div id="hud-offers">${[1, 2, 3, 4].map((n) => `
+          <div class="offer-slot empty" data-slot="${n}">
+            <span class="key">${n}</span><span class="o-route">의뢰 대기</span><br>
+            <span class="o-pay"></span>
+            <div class="o-ttl"><i></i></div>
+          </div>`).join('')}
+        </div>
+        <div id="hud-active"></div>
         <div id="hud-hp" class="hud-panel"></div>
         <div id="hud-stage" class="hud-panel"></div>
         <div id="hud-hint" class="hud-panel"></div>
@@ -236,7 +263,7 @@ export class UI {
 
   setHudVisible(v) { this.hud.style.display = v ? 'block' : 'none'; if (!v) this.hideHint(); }
 
-  updateHUD({ revenue, goal, hp, maxHp, stageLabel, vehicleLabel, timer }) {
+  updateHUD({ revenue, goal, hp, maxHp, stageLabel, vehicleLabel, offers, active, full }) {
     this.el('#hud-money').innerHTML =
       `매출 ₩${revenue.toLocaleString()}<br>목표 ₩${goal.toLocaleString()}`;
     // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
@@ -252,23 +279,48 @@ export class UI {
       this.el('#hud-hp').innerHTML = hearts;
     }
     this.el('#hud-stage').textContent = `${stageLabel} · ${vehicleLabel}`;
-    const timerEl = this.el('#hud-timer');
-    const fill = timerEl.querySelector('.fill');
-    if (timer) {
-      this.el('#hud-timer-text').textContent = timer.text;
-      fill.style.width = `${Math.max(0, Math.min(1, timer.ratio)) * 100}%`;
-      timerEl.classList.toggle('low', timer.low);
-    } else {
-      this.el('#hud-timer-text').textContent = '주문 대기 중…';
-      fill.style.width = '0%';
-      timerEl.classList.remove('low');
+
+    // 의뢰 슬롯 4개 (FR-19)
+    if (!this._slotEls) this._slotEls = [...this.root.querySelectorAll('.offer-slot')];
+    offers.forEach((offer, i) => {
+      const el = this._slotEls[i];
+      el.classList.toggle('empty', !offer);
+      el.classList.toggle('blocked', !!offer && full);
+      if (offer) {
+        el.querySelector('.o-route').textContent = `${offer.shop.name} → ${offer.door.name}`;
+        el.querySelector('.o-pay').textContent = `₩${offer.pay.toLocaleString()}`;
+        el.querySelector('.o-ttl i').style.width = `${(offer.ttl / OFFER_TTL) * 100}%`;
+      } else {
+        el.querySelector('.o-route').textContent = '의뢰 대기';
+        el.querySelector('.o-pay').textContent = '';
+      }
+    });
+
+    // 진행 중 배달 목록 (최대 3건, 색상 = 마커 색)
+    const holder = this.el('#hud-active');
+    const sig = active.map((d) => `${d.id}${d.phase}`).join(',');
+    if (sig !== this._activeSig) {
+      this._activeSig = sig;
+      holder.innerHTML = active.map((d) => `
+        <div class="active-row" data-id="${d.id}">
+          <span class="dot" style="background:${DELIVERY_COLORS_CSS[d.colorIdx]}"></span>
+          <span>${d.phase === 'pickup' ? `픽업 → ${d.shop.name}` : `전달 → ${d.door.name}`}</span>
+          <span class="a-sec"></span>
+        </div>`).join('');
+    }
+    for (const d of active) {
+      const row = holder.querySelector(`[data-id="${d.id}"]`);
+      if (!row) continue;
+      row.querySelector('.a-sec').textContent = `${Math.ceil(d.timeLeft)}초`;
+      row.classList.toggle('low', d.timeLeft < 8);
     }
   }
 
-  setArrow(angleRad, visible) {
+  setArrow(angleRad, visible, color = '#b5372f') {
     const a = this.el('#hud-arrow');
     a.style.display = visible ? 'block' : 'none';
     a.style.transform = `rotate(${angleRad}rad)`;
+    a.style.color = color;
   }
 
   showHint(text) {
