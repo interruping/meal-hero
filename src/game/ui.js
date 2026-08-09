@@ -115,9 +115,11 @@ const CSS = `
   background: rgba(58,58,56,0.3); pointer-events: none; }
 .skill-box.off { filter: grayscale(1); opacity: 0.6; }
 .skill-box.active { border-color: #b5372f; color: #b5372f; }
-#hud-arrow { position: absolute; top: 86px; left: 50%; width: 40px; height: 40px; margin-left: -20px;
-  font-size: 36px; color: #b5372f; text-align: center; line-height: 40px;
-  text-shadow: 2px 2px 0 #efeeea, -1px -1px 0 #efeeea; }
+/* §15.1 (FR-33) 3D 화살표 하단 대상 라벨 — game이 화살표 월드 좌표를 투영해 배치 */
+#arrow-label { position: absolute; left: 0; top: 0; transform: translate(-50%, 10px);
+  font-size: 14px; padding: 2px 9px; background: rgba(246,245,241,0.95);
+  border: 2px solid #b5372f; color: #3a3a38; white-space: nowrap; display: none;
+  box-shadow: 2px 2px 0 rgba(58,58,56,0.45); font-weight: bold; }
 #hud-banner { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;
   background: rgba(246,245,241,0.97); border: 3px solid #3a3a38; padding: 14px 30px; display: none;
   text-align: center; box-shadow: 4px 4px 0 rgba(58,58,56,0.45); }
@@ -240,7 +242,7 @@ export class UI {
           </div>
         </div>
         <div id="hud-hint" class="hud-panel"></div>
-        <div id="hud-arrow">▲</div>
+        <div id="arrow-label"></div>
         <div id="hud-banner"></div>
         <div id="hud-toast"></div>
         <div id="navphone">
@@ -595,11 +597,15 @@ export class UI {
     }
   }
 
-  setArrow(angleRad, visible, color = '#b5372f') {
-    const a = this.el('#hud-arrow');
-    a.style.display = visible ? 'block' : 'none';
-    a.style.transform = `rotate(${angleRad}rad)`;
-    a.style.color = color;
+  // §15.1 (FR-33) 화살표 대상 라벨: x/y는 #ui(=캔버스) 좌표계 px
+  setArrowLabel(text, color, x, y) {
+    const a = this.el('#arrow-label');
+    if (!text) { a.style.display = 'none'; return; }
+    a.textContent = text;
+    a.style.display = 'block';
+    a.style.borderColor = color;
+    a.style.left = `${Math.round(x)}px`;
+    a.style.top = `${Math.round(y)}px`;
   }
 
   showHint(text) {

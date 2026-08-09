@@ -22,6 +22,7 @@ import { tex } from './textures.js';
 import { AudioSys } from '../core/audio.js';
 import { setupWalkAnimation, addOutline } from './walkanim.js';
 import { NavMap } from './navmap.js';
+import { ArrowGuide } from './arrow.js';
 
 const SAVE_KEY = 'mealhero-save-v2'; // §12 경제 개편으로 세이브 포맷 리셋
 
@@ -118,6 +119,7 @@ export class Game {
     });
     this.obstacles = new ObstacleManager(this.world, this.scene, this.player, this);
     this.navMap = new NavMap(); // FR-20 네비게이션
+    this.arrow = new ArrowGuide(this.scene); // FR-33 (§15.1) 3D 안내 화살표
     this.audio = new AudioSys();
     this.player.audio = this.audio;
 
@@ -202,6 +204,8 @@ export class Game {
   showTitle() {
     this.state = 'title';
     this.ui.setHudVisible(false);
+    this.arrow.hide();
+    this.ui.setArrowLabel(null);
     this.input.exitPointerLock();
     this.audio.startBGM('menu'); // §12.6 메뉴 BGM (첫 제스처 시 재생 시작)
     const save = this.loadSave();
@@ -449,6 +453,8 @@ export class Game {
     this._debtBeforeStage = debtBefore; // 배드 엔딩 재도전 시 복원용
     this.input.exitPointerLock();
     this.ui.setHudVisible(false);
+    this.arrow.hide();
+    this.ui.setArrowLabel(null);
     this.audio.stopBGM();
     this.audio.play('clear');
     const isLast = this.stageIdx >= STAGES.length - 1;
@@ -482,6 +488,8 @@ export class Game {
     this.state = 'gameover';
     this.input.exitPointerLock();
     this.ui.setHudVisible(false);
+    this.arrow.hide();
+    this.ui.setArrowLabel(null);
     this.audio.stopBGM();
     this.audio.play('gameover');
     this.ui.showGameOver(reason, () => this.retry());
@@ -543,7 +551,7 @@ export class Game {
     if (t.step === 0 && d.active.length > 0) {
       t.step = 1;
       this.ui.tutorialGuide(1,
-        '화살표를 따라 가게 앞에서 <b>[E]</b> —<br>접수증과 같은 영수증을 <b>[1~4]</b>로 골라 픽업!', '#hud-arrow');
+        '화살표를 따라 가게 앞에서 <b>[E]</b> —<br>접수증과 같은 영수증을 <b>[1~4]</b>로 골라 픽업!', '#arrow-label');
     } else if (t.step === 1 && d.active.some((a) => a.phase === 'carry')) {
       t.step = 2;
       this.ui.tutorialGuide(2,
@@ -759,17 +767,25 @@ export class Game {
       },
     });
 
-    // 화살표: 가장 급박한 진행 건 방향 (해당 배달 색)
+    // §15.1 (FR-33) 3D 화살표: 가장 급박한 진행 건 방향 (해당 배달 색) + 대상 라벨
     const urgent = d.urgent();
     if (urgent) {
       const target = d.targetOf(urgent);
-      const worldAngle = Math.atan2(target.x - this.player.pos.x, target.z - this.player.pos.z);
-      let rel = worldAngle - this.cam.yaw;
-      while (rel > Math.PI) rel -= Math.PI * 2;
-      while (rel < -Math.PI) rel += Math.PI * 2;
-      this.ui.setArrow(-rel, true, DELIVERY_COLORS_CSS[urgent.colorIdx]);
+      const color = DELIVERY_COLORS_CSS[urgent.colorIdx];
+      this.arrow.update(p.time, p.pos, target, color, this.cam.camera, this.world.groundHeight);
+      // 라벨은 화살표 밑을 화면 좌표로 투영 (#ui는 캔버스 rect와 일치 — §15.2)
+      const v = this.arrow.group.position.clone();
+      v.y -= 0.55;
+      v.project(this.cam.camera);
+      this.ui.setArrowLabel(
+        urgent.phase === 'pickup' ? `${urgent.shop.name} 픽업` : `${urgent.door.name} 배달`,
+        color,
+        (v.x * 0.5 + 0.5) * this.ui.root.offsetWidth,
+        (-v.y * 0.5 + 0.5) * this.ui.root.offsetHeight,
+      );
     } else {
-      this.ui.setArrow(0, false);
+      this.arrow.hide();
+      this.ui.setArrowLabel(null);
     }
 
     const near = d.nearestInteractable();
