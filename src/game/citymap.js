@@ -86,7 +86,13 @@ function buildTerrain() {
   return mesh;
 }
 
-function roadStrip(cx, cz, w, len, alongZ) {
+// §15.4 (FR-36) 인도·차도 분리: 격자 골목 폭 6을 차도 3.8 + 양측 인도 1.1로 나눈다.
+// 전체 폭·건물·navmap 좌표는 그대로라 맵 결정성에 영향 없음
+export const LANE_HALF = 1.9; // 차도 반폭 — 차량은 이 안에서만 주행
+const WALK_W = ROAD_HALF - LANE_HALF; // 인도 폭 1.1
+export const WALK_MID = LANE_HALF + WALK_W / 2; // 인도 중심선 ±2.45
+
+function roadStrip(cx, cz, w, len, alongZ, texName = 'road-spring', lift = 0.04, vTile = 8) {
   const seg = Math.ceil(len / 2);
   const geo = alongZ
     ? new THREE.PlaneGeometry(w, len, 1, seg)
@@ -97,31 +103,39 @@ function roadStrip(cx, cz, w, len, alongZ) {
     const x = cx + pos.getX(i);
     const z = cz + pos.getZ(i);
     pos.setX(i, x);
-    pos.setY(i, terrainHeight(x, z) + 0.04);
+    pos.setY(i, terrainHeight(x, z) + lift);
     pos.setZ(i, z);
   }
   const uv = geo.attributes.uv;
   for (let i = 0; i < uv.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
-    uv.setXY(i, (alongZ ? x : z) / (w), (alongZ ? z : x) / 8);
+    uv.setXY(i, (alongZ ? x : z) / (w), (alongZ ? z : x) / vTile);
   }
   geo.computeVertexNormals();
-  return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex('road-spring') }));
+  return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex(texName) }));
 }
 
 function buildRoads() {
-  const group = new THREE.Group();
-  group.name = 'roads';
+  const roads = new THREE.Group();
+  roads.name = 'roads';
+  const sidewalks = new THREE.Group();
+  sidewalks.name = 'sidewalks';
   for (const s of STREETS) {
-    group.add(roadStrip(s, 0, ROAD_HALF * 2, MAP_HALF * 2, true));
-    group.add(roadStrip(0, s, ROAD_HALF * 2, MAP_HALF * 2, false));
+    // 차도 (계절 road-* 텍스처)
+    roads.add(roadStrip(s, 0, LANE_HALF * 2, MAP_HALF * 2, true));
+    roads.add(roadStrip(0, s, LANE_HALF * 2, MAP_HALF * 2, false));
+    // 양측 인도 (계절 sidewalk-* 보도블럭, 차도보다 살짝 높게 — 연석 느낌)
+    for (const side of [-1, 1]) {
+      sidewalks.add(roadStrip(s + side * WALK_MID, 0, WALK_W, MAP_HALF * 2, true, 'sidewalk-spring', 0.07, WALK_W));
+      sidewalks.add(roadStrip(0, s + side * WALK_MID, WALK_W, MAP_HALF * 2, false, 'sidewalk-spring', 0.07, WALK_W));
+    }
   }
-  // §14.2 사방 상가 접근로 (북·남 가로 + 동·서 세로)
-  group.add(roadStrip(0, SHOP_Z - 3, 10, 150, false));
-  group.add(roadStrip(0, -(SHOP_Z - 3), 10, 150, false));
-  group.add(roadStrip(SHOP_Z - 3, 0, 10, 150, true));
-  group.add(roadStrip(-(SHOP_Z - 3), 0, 10, 150, true));
-  return group;
+  // §14.2 사방 상가 접근로 (북·남 가로 + 동·서 세로) — 차량 미주행, 전폭 차도 유지
+  roads.add(roadStrip(0, SHOP_Z - 3, 10, 150, false));
+  roads.add(roadStrip(0, -(SHOP_Z - 3), 10, 150, false));
+  roads.add(roadStrip(SHOP_Z - 3, 0, 10, 150, true));
+  roads.add(roadStrip(-(SHOP_Z - 3), 0, 10, 150, true));
+  return { roads, sidewalks };
 }
 
 let villaSeq = 0;
@@ -215,8 +229,9 @@ export function buildCity(scene) {
 
   const terrain = buildTerrain();
   root.add(terrain);
-  const roads = buildRoads();
+  const { roads, sidewalks } = buildRoads();
   root.add(roads);
+  root.add(sidewalks);
 
   // 블록마다 빌라 2×2 (계단 통로·공터 제외)
   for (let bi = 0; bi < STREETS.length - 1; bi++) {
@@ -341,6 +356,7 @@ export function buildCity(scene) {
     root,
     terrain,
     roads,
+    sidewalks,
     colliders,
     doors,
     shops,

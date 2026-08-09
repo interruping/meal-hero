@@ -8,7 +8,10 @@ const CSS = `
   src: url('fonts/Galmuri11.woff2') format('woff2');
   font-display: swap;
 }
-#ui { position: absolute; inset: 0; pointer-events: none; font-family: 'Galmuri11', monospace;
+/* §15.2 (FR-34): #ui는 뷰포트가 아니라 캔버스(16:9 레터박스) rect에 동기화 —
+   초광폭 모니터에서도 HUD가 그래픽 드로우 영역 안에 머문다 (syncRect) */
+#ui { position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  pointer-events: none; font-family: 'Galmuri11', monospace;
   color: #3a3a38; user-select: none; overflow: hidden; }
 #ui * { box-sizing: border-box; }
 .mh-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
@@ -18,11 +21,15 @@ const CSS = `
   padding: 22px 30px; max-width: 560px; image-rendering: pixelated; }
 .mh-title { font-size: 44px; letter-spacing: 4px; margin: 0; color: #3a3a38; }
 .mh-sub { font-size: 15px; margin: 6px 0 0; color: #6a6a66; }
-.mh-btn { pointer-events: auto; font-family: inherit; font-size: 19px; padding: 12px 26px; margin: 4px;
-  background: #3a3a38; color: #efeeea; border: 2px solid #3a3a38; cursor: pointer; }
-.mh-btn:hover { background: #b5372f; border-color: #b5372f; }
-.mh-btn.small { font-size: 16px; padding: 8px 14px; }
-.mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block; }
+/* §15.3 (FR-35) 버튼 체계: 크기 전부 동일, 기본 선택지 1개만 .primary 악센트 */
+.mh-btn { pointer-events: auto; font-family: inherit; font-size: 17px; padding: 11px 22px; margin: 4px;
+  background: #6a6a66; color: #efeeea; border: 2px solid #3a3a38; cursor: pointer; }
+.mh-btn:hover { background: #7a7a76; }
+.mh-btn.primary { background: #b5372f; border-color: #7e2620; font-weight: bold; }
+.mh-btn.primary:hover { background: #c9463d; }
+.mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block;
+  word-break: keep-all; }
+.mh-controls b { color: #b5372f; } /* §15.3 키 이름 악센트 */
 .mh-caption { font-size: 22px; line-height: 1.8; }
 .mh-hint { font-size: 14px; color: #7a7a76; }
 /* §14.6 튜토리얼 (FR-32): 배경 디밍 + 대상 UI 테두리 강조 + 안내 패널 */
@@ -98,21 +105,25 @@ const CSS = `
 .active-row.low .a-sec { color: #b5372f; font-weight: bold; }
 #hud-hint { bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 19px; display: none;
   background: #3a3a38; color: #efeeea; border-color: #efeeea; }
-/* §14.1 좌측 하단 스킬 UI: 대시 쿨타임 게이지 + 에너지 드링크 키·가격 안내 */
+/* §14.1+§15.2 좌측 하단 스킬 UI: 대시 쿨타임 게이지 + 에너지 드링크 키·가격 안내.
+   아이콘은 SVG (FR-34 — 이모지 금지) */
 #hud-skills { position: absolute; bottom: 54px; left: 12px; display: flex; gap: 6px; }
-.skill-box { width: 86px; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
-  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); padding: 5px 4px 4px; font-size: 12px;
-  text-align: center; line-height: 1.45; position: relative; overflow: hidden; }
-.skill-box .s-icon { font-size: 19px; display: block; }
+.skill-box { width: 96px; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
+  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); padding: 6px 4px 5px; font-size: 12px;
+  text-align: center; line-height: 1.5; position: relative; overflow: hidden; }
+.skill-box .s-icon { display: block; height: 30px; margin: 0 auto 2px; }
+.skill-box .s-icon svg { width: 30px; height: 30px; display: block; margin: 0 auto; }
 .skill-box .s-key { display: inline-block; background: #3a3a38; color: #efeeea;
   padding: 0 5px; font-size: 11px; }
 .skill-box .s-cd { position: absolute; left: 0; bottom: 0; width: 100%; height: 0%;
   background: rgba(58,58,56,0.3); pointer-events: none; }
 .skill-box.off { filter: grayscale(1); opacity: 0.6; }
 .skill-box.active { border-color: #b5372f; color: #b5372f; }
-#hud-arrow { position: absolute; top: 86px; left: 50%; width: 40px; height: 40px; margin-left: -20px;
-  font-size: 36px; color: #b5372f; text-align: center; line-height: 40px;
-  text-shadow: 2px 2px 0 #efeeea, -1px -1px 0 #efeeea; }
+/* §15.1 (FR-33) 3D 화살표 하단 대상 라벨 — game이 화살표 월드 좌표를 투영해 배치 */
+#arrow-label { position: absolute; left: 0; top: 0; transform: translate(-50%, 10px);
+  font-size: 14px; padding: 2px 9px; background: rgba(246,245,241,0.95);
+  border: 2px solid #b5372f; color: #3a3a38; white-space: nowrap; display: none;
+  box-shadow: 2px 2px 0 rgba(58,58,56,0.45); font-weight: bold; }
 #hud-banner { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;
   background: rgba(246,245,241,0.97); border: 3px solid #3a3a38; padding: 14px 30px; display: none;
   text-align: center; box-shadow: 4px 4px 0 rgba(58,58,56,0.45); }
@@ -213,18 +224,29 @@ export class UI {
         <div id="hud-stage" class="hud-panel"></div>
         <div id="hud-skills">
           <div class="skill-box" id="skill-dash">
-            <span class="s-icon">💨</span>
+            <span class="s-icon"><svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2.5 4.5 L11 12 L2.5 19.5 V15 L6 12 L2.5 9 Z" fill="#4f6d8f" stroke="#26262a" stroke-width="1"/>
+              <path d="M11.5 4.5 L20 12 L11.5 19.5 V15 L15 12 L11.5 9 Z" fill="#b5372f" stroke="#26262a" stroke-width="1"/>
+              <rect x="20.5" y="7" width="2.5" height="2" fill="#4f6d8f"/>
+              <rect x="20.5" y="11" width="2.5" height="2" fill="#b5372f"/>
+              <rect x="20.5" y="15" width="2.5" height="2" fill="#4f6d8f"/>
+            </svg></span>
             <span class="s-key">Shift</span> 대시
             <div class="s-cd"></div>
           </div>
           <div class="skill-box" id="skill-drink">
-            <span class="s-icon">🥤</span>
+            <span class="s-icon"><svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="7" y="5.5" width="10" height="15.5" rx="1.5" fill="#b5372f" stroke="#26262a" stroke-width="1"/>
+              <rect x="7.6" y="3" width="8.8" height="2.6" fill="#c6c2b4" stroke="#26262a" stroke-width="1"/>
+              <rect x="10" y="1.6" width="4" height="1.6" fill="#8a8a86"/>
+              <path d="M13.6 7.5 L9.6 13.2 H12 L10.6 19 L15.2 12 H12.6 Z" fill="#c9a13b" stroke="#26262a" stroke-width="0.7"/>
+            </svg></span>
             <span class="s-key">Q</span> ₩1,500
             <div class="s-cd"></div>
           </div>
         </div>
         <div id="hud-hint" class="hud-panel"></div>
-        <div id="hud-arrow">▲</div>
+        <div id="arrow-label"></div>
         <div id="hud-banner"></div>
         <div id="hud-toast"></div>
         <div id="navphone">
@@ -252,6 +274,21 @@ export class UI {
     this.el = (id) => this.root.querySelector(id);
     this.bannerTimeout = null;
     this.toastTimeout = null;
+
+    // §15.2 (FR-34): 렌더 캔버스는 16:9 레터박스 — #ui를 캔버스 rect에 맞춰
+    // 모든 HUD가 그래픽 드로우 영역 안에 위치하게 한다.
+    // RetroRenderer의 resize 리스너가 먼저 등록되어 있어 캔버스 갱신 후 실행됨
+    this.container = container;
+    this._syncRect = () => {
+      const c = container.querySelector(':scope > canvas');
+      if (!c) return;
+      this.root.style.left = `${c.offsetLeft}px`;
+      this.root.style.top = `${c.offsetTop}px`;
+      this.root.style.width = `${c.offsetWidth}px`;
+      this.root.style.height = `${c.offsetHeight}px`;
+    };
+    window.addEventListener('resize', this._syncRect);
+    this._syncRect();
   }
 
   clearScreen() { this.holder.innerHTML = ''; }
@@ -271,21 +308,23 @@ export class UI {
       : '';
     const s = this.screen(`
       <div class="mh-panel">
-        <h1 class="mh-title">MEAL HERO</h1>
+        <img id="title-logo" src="${import.meta.env.BASE_URL}generated/logo-title.png"
+          alt="MEAL HERO : delivery simulator"
+          style="width:400px; max-width:100%; display:block; margin:0 auto; image-rendering:pixelated">
         <p class="mh-sub">빚 2,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
-        <div style="margin-top:16px"><button class="mh-btn" id="btn-start">배달 시작</button>${continueBtn}</div>
+        <div style="margin-top:16px"><button class="mh-btn primary" id="btn-start">배달 시작</button>${continueBtn}</div>
         <div style="margin-top:14px" class="mh-controls">
-          [W A S D] 이동 · [마우스] 시점 · [Space] 점프<br>
-          [1~4] 배달 의뢰 수락 / 수령 영수증 선택 · [E] 픽업 / 전달<br>
-          [Shift] 대시 (3초 가속, 쿨 10초) · [Q] 에너지 드링크 ₩1,500 (쿨 초기화)<br>
-          [M] 누르고 있으면 네비게이션 · [R] 재시작
+          <b>[W A S D]</b> 이동 · <b>[마우스]</b> 시점 · <b>[Space]</b> 점프<br>
+          <b>[1~4]</b> 배달 의뢰 수락 / 수령 영수증 선택 · <b>[E]</b> 픽업 / 전달<br>
+          <b>[Shift]</b> 대시 (3초 가속, 쿨 10초) · <b>[Q]</b> 에너지 드링크 ₩1,500 (쿨 초기화)<br>
+          <b>[M]</b> 누르고 있으면 네비게이션 · <b>[R]</b> 재시작
         </div>
         <div style="margin-top:14px">
           <div class="mh-hint">심사 모드 — 스테이지 바로가기</div>
-          <button class="mh-btn small" data-stage="0">1 봄</button>
-          <button class="mh-btn small" data-stage="1">2 여름</button>
-          <button class="mh-btn small" data-stage="2">3 가을</button>
-          <button class="mh-btn small" data-stage="3">4 겨울</button>
+          <button class="mh-btn" data-stage="0">1 봄</button>
+          <button class="mh-btn" data-stage="1">2 여름</button>
+          <button class="mh-btn" data-stage="2">3 가을</button>
+          <button class="mh-btn" data-stage="3">4 겨울</button>
         </div>
       </div>
     `);
@@ -358,11 +397,11 @@ export class UI {
       : '';
     const s = this.screen(`
       <div class="mh-panel">
-        <div class="mh-sub">STAGE ${stage.id}</div>
-        <div class="mh-caption" style="margin:10px 0">${stage.intro}</div>
-        <div class="mh-sub">이동 수단: ${vehicleLabel} · 남은 빚 ₩${debt.toLocaleString()} · 제한 시간 10분</div>
+        <div class="mh-title" style="font-size:30px">STAGE ${stage.id}</div>
+        <div class="mh-caption" style="margin:10px 0; font-size:19px">${stage.intro}</div>
+        <div class="mh-sub">이동 수단: <b>${vehicleLabel}</b> · 남은 빚 <b>₩${debt.toLocaleString()}</b> · 제한 시간 <b>10분</b></div>
         ${obsHtml}
-        <div style="margin-top:14px"><button class="mh-btn" id="btn-go">출발</button></div>
+        <div style="margin-top:14px"><button class="mh-btn primary" id="btn-go">출발</button></div>
       </div>
     `);
     if (obstacle) s.querySelector('.io-view').appendChild(obstacle.canvas);
@@ -384,7 +423,7 @@ export class UI {
           빚 ₩${debtBefore.toLocaleString()} → <b style="color:#b5372f">₩${debtAfter.toLocaleString()}</b>
         </div>
         ${bridge}
-        <button class="mh-btn" id="btn-next">${isLast ? '엔딩 보기' : '다음 계절로'}</button>
+        <button class="mh-btn primary" id="btn-next">${isLast ? '엔딩 보기' : '다음 계절로'}</button>
       </div>
     `);
     s.querySelector('#btn-next').addEventListener('click', onNext);
@@ -395,7 +434,7 @@ export class UI {
       <div class="mh-panel">
         <div class="mh-title" style="font-size:30px; color:#b5372f">배달 실패…</div>
         <div class="mh-sub" style="margin:12px 0">${reason}</div>
-        <button class="mh-btn" id="btn-retry">[R] 다시 도전</button>
+        <button class="mh-btn primary" id="btn-retry">[R] 다시 도전</button>
       </div>
     `);
     s.querySelector('#btn-retry').addEventListener('click', onRetry);
@@ -413,9 +452,11 @@ export class UI {
     const tail = paid
       ? '<div class="mh-sub">주인공은 이제… 자기 가게를 차리기로 했다. 아마도.</div>'
       : '';
+    // §15.3: 기본 선택지 1개만 악센트 — 재도전이 있으면 재도전, 없으면 타이틀로
     const retryBtn = onRetryWinter
-      ? '<button class="mh-btn" id="btn-retry-winter">겨울 재도전</button>'
+      ? '<button class="mh-btn primary" id="btn-retry-winter">겨울 재도전</button>'
       : '';
+    const titleCls = onRetryWinter ? 'mh-btn' : 'mh-btn primary';
     const s = this.screen(`
       <div class="mh-panel">
         ${head}
@@ -426,7 +467,7 @@ export class UI {
           충돌 사고: ${career.hits}회
         </div>
         ${tail}
-        <div style="margin-top:14px">${retryBtn}<button class="mh-btn" id="btn-title">타이틀로</button></div>
+        <div style="margin-top:14px">${retryBtn}<button class="${titleCls}" id="btn-title">타이틀로</button></div>
       </div>
     `);
     s.querySelector('#btn-title').addEventListener('click', onTitle);
@@ -437,10 +478,10 @@ export class UI {
   showTutorialAsk({ onYes, onNo }) {
     const s = this.screen(`
       <div class="mh-panel">
-        <div class="mh-caption">튜토리얼을 할까요?</div>
+        <div class="mh-title" style="font-size:26px">튜토리얼을 할까요?</div>
         <div class="mh-sub" style="margin:8px 0">배달 수락부터 전달까지 4단계로 안내합니다 (진행 중 타이머 정지)</div>
         <div style="margin-top:14px">
-          <button class="mh-btn" id="btn-tut-yes">예, 배워볼게요</button>
+          <button class="mh-btn primary" id="btn-tut-yes">예, 배워볼게요</button>
           <button class="mh-btn" id="btn-tut-no">아니오, 바로 시작</button>
         </div>
       </div>
@@ -468,11 +509,11 @@ export class UI {
   showPause({ onResume, onRestart, onMenu }) {
     const s = this.screen(`
       <div class="mh-panel">
-        <div class="mh-caption">일시 정지</div>
+        <div class="mh-title" style="font-size:26px">일시 정지</div>
         <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px; align-items:center">
-          <button class="mh-btn" id="btn-resume">계속하기</button>
-          <button class="mh-btn small" id="btn-restart">스테이지 재시작</button>
-          <button class="mh-btn small" id="btn-menu">메인 메뉴로 돌아가기</button>
+          <button class="mh-btn primary" id="btn-resume">계속하기</button>
+          <button class="mh-btn" id="btn-restart">스테이지 재시작</button>
+          <button class="mh-btn" id="btn-menu">메인 메뉴로 돌아가기</button>
         </div>
         <div class="mh-hint" style="margin-top:10px">[ESC] 계속하기</div>
       </div>
@@ -486,7 +527,7 @@ export class UI {
 
   updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full, playerPos, skill }) {
     this.el('#hud-money').innerHTML =
-      `매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br>순수익 ₩${(revenue - fees).toLocaleString()}`;
+      `매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br><b>순수익 ₩${(revenue - fees).toLocaleString()}</b>`;
     // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
     if (hp !== this._lastHp) {
       this._lastHp = hp;
@@ -564,11 +605,15 @@ export class UI {
     }
   }
 
-  setArrow(angleRad, visible, color = '#b5372f') {
-    const a = this.el('#hud-arrow');
-    a.style.display = visible ? 'block' : 'none';
-    a.style.transform = `rotate(${angleRad}rad)`;
-    a.style.color = color;
+  // §15.1 (FR-33) 화살표 대상 라벨: x/y는 #ui(=캔버스) 좌표계 px
+  setArrowLabel(text, color, x, y) {
+    const a = this.el('#arrow-label');
+    if (!text) { a.style.display = 'none'; return; }
+    a.textContent = text;
+    a.style.display = 'block';
+    a.style.borderColor = color;
+    a.style.left = `${Math.round(x)}px`;
+    a.style.top = `${Math.round(y)}px`;
   }
 
   showHint(text) {

@@ -283,8 +283,24 @@
     {
       "name": "shop-super",
       "ok": true
+    },
+    {
+      "name": "sidewalk-spring",
+      "ok": true
+    },
+    {
+      "name": "sidewalk-summer",
+      "ok": true
+    },
+    {
+      "name": "sidewalk-winter",
+      "ok": true
+    },
+    {
+      "name": "sidewalk-autumn",
+      "ok": true
     }
   ],
-  "generated": 71,
+  "generated": 75,
   "failed": 0
 }
