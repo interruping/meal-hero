@@ -10,7 +10,7 @@ export const STAGES = [
     id: 2, season: 'summer', vehicle: 'kickboard',
     goal: 8_000_000, orderGap: 2.2,
     obstacles: ['flyer', 'kid'],
-    intro: '여름 — 킥보드 입수! 속도가 두 배, 사고도 두 배.',
+    intro: '여름 — 킥보드 입수! 발보다 빠르고, 사고도 빠르다.',
   },
   {
     id: 3, season: 'autumn', vehicle: 'bicycle',

@@ -13,8 +13,8 @@ export const VEHICLES = {
   },
   kickboard: {
     label: '킥보드',
-    speedMult: 2,
-    maxSpeed: 13,
+    speedMult: 1.25,
+    maxSpeed: 8.125,
     accelRate: 5,
     brakeRate: 7,
     turnRate: 9,
@@ -23,8 +23,8 @@ export const VEHICLES = {
   },
   bicycle: {
     label: '자전거',
-    speedMult: 3,
-    maxSpeed: 19.5,
+    speedMult: 1.5,
+    maxSpeed: 9.75,
     accelRate: 3.2,
     brakeRate: 5,
     turnRate: 6.5,
@@ -33,8 +33,8 @@ export const VEHICLES = {
   },
   scooter: {
     label: '스쿠터',
-    speedMult: 4,
-    maxSpeed: 26,
+    speedMult: 2,
+    maxSpeed: 13,
     accelRate: 2.6,
     brakeRate: 4,
     turnRate: 5,
