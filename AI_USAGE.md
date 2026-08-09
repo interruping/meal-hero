@@ -7,7 +7,7 @@
 | 도구 | 사용량 | 잔여/한도 |
 |---|---|---|
 | Meshy.ai | **888 크레딧** (모델 25종 + 행인 10×2세대 + 리깅·애니메이션 + 난간 재시도 30) | 212 / 1,100 (API 실측) |
-| OpenRouter gpt-image-2 | **$0.49** (82장 × low $0.006) | $20 한도 (gpt-audio와 공유) |
+| OpenRouter gpt-image-2 | **$0.51** (85장 × low $0.006) | $20 한도 (gpt-audio와 공유) |
 | OpenRouter gpt-audio-mini | **$0.002** (보이스 4클립, 오디오 출력 601토큰 × $2.4/M) | 〃 |
 
 ## 개발 도구
@@ -146,3 +146,17 @@ system 프롬프트로 캐릭터 연기 지시, user 메시지가 대사.
 
 총 오디오 출력 601토큰 ≈ **$0.0014** (+텍스트 입출력 미미) — 러닝 토탈 $0.44 + $0.002.
 비음성 오디오(BGM 5곡·SFX 13종)는 gpt-audio로 생성 불가 → CC0 외부 에셋 사용 (`CREDITS.md`).
+
+## gpt-image-2 — 5차 확장: 교차로 신호 텍스처 (2026-08-10)
+
+FR-41 횡단보도·신호등용 3장, 전부 low($0.006) 1발 성공 — 누적 $0.51 (85장).
+
+| 파일 | 용도 | 프롬프트 요약 |
+|---|---|---|
+| texture-crosswalk.png | 횡단보도 노면 (256², 축별로 텍스처 90° 회전 재사용) | top-down zebra stripes on worn asphalt, PS1 low-res |
+| prop-signal-ped.png | 보행 신호등 전면 아틀라스 (512², 좌=적 우=녹, UV 반분) | two panels, red standing / green walking pictogram |
+| prop-signal-car.png | 차량 신호등 전면 아틀라스 (512², 동일 반분) | two panels, vertical two-lamp, red lit / green lit |
+
+아틀라스 반분은 텍스처 clone + repeat 0.5 + offset — three.js r135+는 clone이 Source를
+공유해 로드 전 clone도 안전. 등화 자발광은 Lambert `emissiveMap`(동일 텍스처)로 처리해
+어두운 하우징 픽셀은 그대로 어둡게 유지된다.

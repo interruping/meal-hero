@@ -1,20 +1,25 @@
 import * as THREE from 'three';
 import { STREETS, MAP_HALF, LANE_HALF } from './citymap.js';
 import { VEHICLES } from './vehicles.js';
+import { STOP_OFF } from './signals.js';
 
-// §15.4 (FR-36) 차도 주행 차량 — 플레이어 스쿠터 최고 속도의 3배로, 브레이크를
-// 전혀 밟지 않고 격자 차도를 직진하는 코믹한 존재. 치이면 즉시 체력 1 차감.
+// §15.4 (FR-36) 차도 주행 차량 — 플레이어 스쿠터 최고 속도의 3배로 격자 차도를
+// 직진하는 코믹한 존재. 치이면 즉시 체력 1 차감. §16.2 (FR-41): 유일한 예외로
+// 보행 신호 파란불에는 정지선 앞에 급정거한다 (그 외 구간은 무브레이크 유지).
 // 접근로·상가골목은 주행하지 않는다. 소품·볼라드와의 충돌 판정 없음(무자비함).
 export const CAR_SPEED = VEHICLES.scooter.maxSpeed * 3; // 13 × 3 = 39
 const LANE = 0.7; // 진행 방향별 차선 오프셋 (차도 반폭 1.9 안)
 const COUNT = 6;
 const HIT_HALF_LEN = 2.4; // 차 로컬 충돌 반경 (길이/폭)
 const HIT_HALF_WID = 1.15;
+const BRAKE = 130; // 급정거 감속 (정지 거리 ≈ 5.9m — 정지선 간격 안)
+const ACCEL = 30; // 재출발 가속
 
 export class Traffic {
-  constructor(scene, world, models, onHit) {
+  constructor(scene, world, models, onHit, signals = null) {
     this.world = world;
     this.onHit = onHit;
+    this.signals = signals;
     this.group = new THREE.Group();
     this.group.name = 'traffic';
     scene.add(this.group);
@@ -22,7 +27,7 @@ export class Traffic {
     for (let i = 0; i < COUNT; i++) {
       const model = (i % 3 === 2 ? models.truck : models.sedan).clone(true);
       this.group.add(model);
-      const car = { model, axis: 'z', line: 0, dir: 1, t: 0 };
+      const car = { model, axis: 'z', line: 0, dir: 1, t: 0, speed: CAR_SPEED };
       this.respawn(car, true);
       this.cars.push(car);
     }
@@ -34,12 +39,37 @@ export class Traffic {
     car.dir = Math.random() < 0.5 ? -1 : 1;
     // 진입: 맵 반대편 끝에서. 초기 배치만 전 구간 산개
     car.t = scatter ? -MAP_HALF + Math.random() * MAP_HALF * 2 : -car.dir * (MAP_HALF + 6);
+    car.speed = CAR_SPEED;
+  }
+
+  // §16.2 다음 정지선까지 진행 방향 거리 (이미 지난 선·교차로 내부는 무시)
+  nextStopDist(car) {
+    let best = Infinity;
+    for (const c of STREETS) {
+      const line = c - car.dir * STOP_OFF;
+      const d = (line - car.t) * car.dir;
+      if (d >= -0.3 && d < best) best = d;
+    }
+    return best;
   }
 
   update(dt, player, playing) {
     const H = this.world.groundHeight;
+    const go = this.signals ? this.signals.carsGo() : true;
     for (const car of this.cars) {
-      car.t += car.dir * CAR_SPEED * dt;
+      // 신호 파란불(보행)이면 정지선 앞 급정거, 아니면 최고속 복귀 — 그 외 무브레이크
+      if (!go) {
+        const d = this.nextStopDist(car);
+        if (d < (car.speed * car.speed) / (2 * BRAKE) + 1.0) {
+          car.speed = Math.max(0, car.speed - BRAKE * dt);
+          if (d <= 0.2 && car.speed < 3) car.speed = 0;
+        } else {
+          car.speed = Math.min(CAR_SPEED, car.speed + ACCEL * dt);
+        }
+      } else {
+        car.speed = Math.min(CAR_SPEED, car.speed + ACCEL * dt);
+      }
+      car.t += car.dir * car.speed * dt;
       if (Math.abs(car.t) > MAP_HALF + 8) this.respawn(car);
       const lat = car.line + car.dir * LANE;
       const x = car.axis === 'z' ? lat : car.t;
@@ -57,7 +87,8 @@ export class Traffic {
       const along = dx * fx + dz * fz;
       const across = dx * fz - dz * fx;
       const dy = player.pos.y - car.model.position.y;
-      if (Math.abs(along) < HIT_HALF_LEN && Math.abs(across) < HIT_HALF_WID && dy < 1.5) {
+      // 정지·서행(신호 대기) 중에는 무해 — 주행 중에만 치임
+      if (car.speed > 3 && Math.abs(along) < HIT_HALF_LEN && Math.abs(across) < HIT_HALF_WID && dy < 1.5) {
         this.onHit(car, fx, fz);
       }
     }

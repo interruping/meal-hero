@@ -27,11 +27,25 @@ const CSS = `
 .mh-btn:hover { background: #7a7a76; }
 .mh-btn.primary { background: #b5372f; border-color: #7e2620; font-weight: bold; }
 .mh-btn.primary:hover { background: #c9463d; }
+/* §16.5 (FR-44) 세로 스택 버튼 열: 글자 수와 무관하게 전부 동일 폭 */
+.btn-col { display: flex; flex-direction: column; gap: 8px; align-items: center; }
+.btn-col .mh-btn { width: 280px; margin: 0; box-sizing: border-box; }
+/* §16.6 (FR-45) 심사용 전용 식별색 — 게임 악센트(빨강)와 구분되는 파랑 */
+.mh-btn.judge { background: #2e5f8f; border-color: #1e4265; }
+.mh-btn.judge:hover { background: #3b74aa; }
 .mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block;
   word-break: keep-all; }
 .mh-controls b { color: #b5372f; } /* §15.3 키 이름 악센트 */
 .mh-caption { font-size: 22px; line-height: 1.8; }
 .mh-hint { font-size: 14px; color: #7a7a76; }
+/* §16.4 (FR-43) 분기 정산 영수증: 항목별 1행, 항목명 좌 / 금액 우, 결론은 마지막 줄 강조 */
+.receipt { width: 330px; margin: 14px auto 4px; text-align: left; font-size: 15px;
+  background: #f7f5ee; border: 2px solid #8b8779; padding: 12px 16px; }
+.receipt .r-row { display: flex; justify-content: space-between; gap: 14px; padding: 3px 0; }
+.receipt .r-row span:last-child { text-align: right; white-space: nowrap; }
+.receipt .r-sep { border-top: 2px dashed #8b8779; margin: 7px 0; }
+.receipt .r-total { font-weight: bold; font-size: 18px; }
+.receipt .r-total .neg { color: #b5372f; }
 /* §14.6 튜토리얼 (FR-32): 배경 디밍 + 대상 UI 테두리 강조 + 안내 패널 */
 #tut-dim { position: absolute; inset: 0; background: rgba(38,38,42,0.35); display: none;
   z-index: 5; pointer-events: none; }
@@ -302,36 +316,67 @@ export class UI {
     return div;
   }
 
+  // §16.6 (FR-45, FR-46) 메인메뉴: 조작법·심사용 스테이지 선택은 한 뎁스 안으로.
+  // 첫 화면은 로고 + 시작·이어하기 + 조작 방법 + 심사용 메뉴(파랑)만
   showTitle({ onStart, onStage, save, onContinue }) {
-    const continueBtn = save
-      ? `<button class="mh-btn" id="btn-continue">이어하기 (STAGE ${save.nextStage + 1})</button>`
-      : '';
-    const s = this.screen(`
-      <div class="mh-panel">
-        <img id="title-logo" src="${import.meta.env.BASE_URL}generated/logo-title.png"
-          alt="MEAL HERO : delivery simulator"
-          style="width:400px; max-width:100%; display:block; margin:0 auto; image-rendering:pixelated">
-        <p class="mh-sub">빚 2,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
-        <div style="margin-top:16px"><button class="mh-btn primary" id="btn-start">배달 시작</button>${continueBtn}</div>
-        <div style="margin-top:14px" class="mh-controls">
-          <b>[W A S D]</b> 이동 · <b>[마우스]</b> 시점 · <b>[Space]</b> 점프<br>
-          <b>[1~4]</b> 배달 의뢰 수락 / 수령 영수증 선택 · <b>[E]</b> 픽업 / 전달<br>
-          <b>[Shift]</b> 대시 (3초 가속, 쿨 10초) · <b>[Q]</b> 에너지 드링크 ₩1,500 (쿨 초기화)<br>
-          <b>[M]</b> 누르고 있으면 네비게이션 · <b>[R]</b> 재시작
+    const render = (view) => {
+      if (view === 'controls') {
+        const s = this.screen(`
+          <div class="mh-panel">
+            <div class="mh-title" style="font-size:26px">조작 방법</div>
+            <div style="margin-top:12px" class="mh-controls">
+              <b>[W A S D]</b> 이동 · <b>[마우스]</b> 시점 · <b>[Space]</b> 점프<br>
+              <b>[1~4]</b> 배달 의뢰 수락 / 수령 영수증 선택 · <b>[E]</b> 픽업 / 전달<br>
+              <b>[Shift]</b> 대시 (3초 가속, 쿨 10초) · <b>[Q]</b> 에너지 드링크 ₩1,500 (쿨 초기화)<br>
+              <b>[M]</b> 누르고 있으면 네비게이션 · <b>[R]</b> 재시작 · <b>[ESC]</b> 일시정지
+            </div>
+            <div style="margin-top:14px"><button class="mh-btn primary" id="btn-close">닫기</button></div>
+          </div>
+        `);
+        s.querySelector('#btn-close').addEventListener('click', () => render('main'));
+        return;
+      }
+      if (view === 'judge') {
+        const s = this.screen(`
+          <div class="mh-panel">
+            <div class="mh-title" style="font-size:26px">심사용 메뉴</div>
+            <div class="mh-hint" style="margin-top:6px">스테이지 바로가기 — 선택한 계절을 처음부터 시작 (FR-11)</div>
+            <div style="margin-top:12px">
+              <button class="mh-btn" data-stage="0">1 봄</button>
+              <button class="mh-btn" data-stage="1">2 여름</button>
+              <button class="mh-btn" data-stage="2">3 가을</button>
+              <button class="mh-btn" data-stage="3">4 겨울</button>
+            </div>
+            <div style="margin-top:10px"><button class="mh-btn" id="btn-back">뒤로</button></div>
+          </div>
+        `);
+        s.querySelectorAll('[data-stage]').forEach((b) =>
+          b.addEventListener('click', () => onStage(Number(b.dataset.stage))));
+        s.querySelector('#btn-back').addEventListener('click', () => render('main'));
+        return;
+      }
+      const continueBtn = save
+        ? `<button class="mh-btn" id="btn-continue">이어하기 (STAGE ${save.nextStage + 1})</button>`
+        : '';
+      const s = this.screen(`
+        <div class="mh-panel">
+          <img id="title-logo" src="${import.meta.env.BASE_URL}generated/logo-title.png"
+            alt="MEAL HERO : delivery simulator"
+            style="width:400px; max-width:100%; display:block; margin:0 auto; image-rendering:pixelated">
+          <p class="mh-sub">빚 2,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
+          <div style="margin-top:16px"><button class="mh-btn primary" id="btn-start">배달 시작</button>${continueBtn}</div>
+          <div style="margin-top:6px">
+            <button class="mh-btn" id="btn-controls">조작 방법</button>
+            <button class="mh-btn judge" id="btn-judge">심사용 메뉴</button>
+          </div>
         </div>
-        <div style="margin-top:14px">
-          <div class="mh-hint">심사 모드 — 스테이지 바로가기</div>
-          <button class="mh-btn" data-stage="0">1 봄</button>
-          <button class="mh-btn" data-stage="1">2 여름</button>
-          <button class="mh-btn" data-stage="2">3 가을</button>
-          <button class="mh-btn" data-stage="3">4 겨울</button>
-        </div>
-      </div>
-    `);
-    s.querySelector('#btn-start').addEventListener('click', onStart);
-    if (save && onContinue) s.querySelector('#btn-continue').addEventListener('click', onContinue);
-    s.querySelectorAll('[data-stage]').forEach((b) =>
-      b.addEventListener('click', () => onStage(Number(b.dataset.stage))));
+      `);
+      s.querySelector('#btn-start').addEventListener('click', onStart);
+      if (save && onContinue) s.querySelector('#btn-continue').addEventListener('click', onContinue);
+      s.querySelector('#btn-controls').addEventListener('click', () => render('controls'));
+      s.querySelector('#btn-judge').addEventListener('click', () => render('judge'));
+    };
+    render('main');
   }
 
   // FR-31 (§14.5): 초당 10자 타자기 + 주인공 모델 캔버스.
@@ -413,14 +458,26 @@ export class UI {
     const bridge = isLast
       ? ''
       : `<div class="mh-caption" style="margin:8px 0; font-size:16px">계절이 바뀐다… 새 이동 수단 <b>${nextVehicle}</b> 획득!</div>`;
+    // §16.4 (FR-43) 영수증 형식 — 항목별 1행, 결론(남은 빚)은 마지막 줄
+    const won = (v) => `₩${v.toLocaleString()}`;
+    const repaid = debtBefore - debtAfter;
+    const row = (k, v) => `<div class="r-row"><span>${k}</span><span>${v}</span></div>`;
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-title" style="font-size:28px">${stage.intro.split('—')[0].trim()} 분기 정산</div>
-        <div class="mh-caption" style="margin:12px 0; font-size:16px; line-height:2">
-          배달 ${deliveries}건 · 매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br>
-          10분 순수익 ₩${net.toLocaleString()} × ${days}일<br>
-          = 분기 매출 <b>₩${settlement.toLocaleString()}</b><br>
-          빚 ₩${debtBefore.toLocaleString()} → <b style="color:#b5372f">₩${debtAfter.toLocaleString()}</b>
+        <div class="receipt">
+          ${row('배달 완료', `${deliveries}건`)}
+          ${row('매출', won(revenue))}
+          ${row('플랫폼 수수료', `-${won(fees)}`)}
+          <div class="r-sep"></div>
+          ${row('10분 순수익', won(net))}
+          ${row('분기 환산', `× ${days}일`)}
+          ${row('분기 매출', `<b>${won(settlement)}</b>`)}
+          <div class="r-sep"></div>
+          ${row('빚 상환', `-${won(repaid)}`)}
+          <div class="r-row r-total"><span>남은 빚</span><span class="${debtAfter > 0 ? 'neg' : ''}">${
+            debtAfter > 0 ? won(debtAfter) : `${won(0)} — 완납!`
+          }</span></div>
         </div>
         ${bridge}
         <button class="mh-btn primary" id="btn-next">${isLast ? '엔딩 보기' : '다음 계절로'}</button>
@@ -510,7 +567,7 @@ export class UI {
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-title" style="font-size:26px">일시 정지</div>
-        <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px; align-items:center">
+        <div class="btn-col" style="margin-top:14px">
           <button class="mh-btn primary" id="btn-resume">계속하기</button>
           <button class="mh-btn" id="btn-restart">스테이지 재시작</button>
           <button class="mh-btn" id="btn-menu">메인 메뉴로 돌아가기</button>

@@ -142,6 +142,7 @@ export function buildProps(world, scene, M) {
     for (let attempt = 0; attempt < 8; attempt++) {
       const sx = STREETS[Math.floor(rng() * STREETS.length)] + (rng() < 0.5 ? -1 : 1) * (ROAD_HALF - 0.6);
       const sz = -75 + rng() * 140;
+      if (STREETS.some((s) => Math.abs(sz - s) < 3.2)) continue; // §16.3 교차 가로 차선 회피
       if (place('쓰레기봉투', 'trashpile', sx, sz, null, false, { check: true })) {
         trashSpots.push(new THREE.Vector3(sx, H(sx, sz), sz));
         break;
@@ -162,6 +163,7 @@ export function buildProps(world, scene, M) {
     for (let attempt = 0; attempt < 8; attempt++) {
       const x = STREETS[1 + Math.floor(rng() * 3)] + (rng() < 0.5 ? -5 : 5);
       const z = -60 + rng() * 110;
+      if (STREETS.some((s) => Math.abs(z - s) < 3.2)) continue; // §16.3 교차 가로 차선 회피
       if (place('평상', 'pyeongsang', x, z, null, true, { check: true })) break;
     }
   }
@@ -251,8 +253,9 @@ export function buildProps(world, scene, M) {
   }
 
   // ── 13 자판기 ──
-  for (let i = 0; i < 6; i++) {
-    place('자판기', 'vending', -60 + i * 24, SHOP_Z - 8.6, Math.PI, true);
+  // §16.3 (FR-42) 구 좌표(z=66 골목 차선 안) → 상가 프롬나드 위로 이전
+  for (const [vx, vz] of [[-52, 74.2], [-22, 74.2], [8, 74.2], [-8, -74.2], [22, -74.2], [52, -74.2]]) {
+    place('자판기', 'vending', vx, vz, vz > 0 ? Math.PI : 0, true);
   }
 
   // ── 14 우편함 ──
@@ -267,8 +270,9 @@ export function buildProps(world, scene, M) {
   typeSet.add('주차트럭');
 
   // ── 17 벤치 ──
-  for (let i = 0; i < 4; i++) {
-    place('벤치', 'bench', -50 + i * 33, SHOP_Z - 9.5, Math.PI, true);
+  // §16.3 (FR-42) 구 좌표(z=66 골목 차선 안) → 상가 프롬나드 위로 이전
+  for (const [bx2, bz2] of [[-50, 75.4], [-17, 75.4], [16, -75.4], [49, -75.4]]) {
+    place('벤치', 'bench', bx2, bz2, bz2 > 0 ? Math.PI : 0, true);
   }
 
   // ── 18 소화전 ──
@@ -294,10 +298,12 @@ export function buildProps(world, scene, M) {
     add('맨홀', m);
   }
 
-  // ── 20 볼라드 (상가골목 입구) ──
+  // ── 20 볼라드 (상가 프롬나드 가장자리) ──
+  // §16.3 (FR-42) 구 좌표(차선 안) → 프롬나드 남측 경계로. 세로 골목 차선 자리는 건너뜀
   const bolMat = sharedMat('prop-bollard');
   for (let x = -70; x <= 70; x += 10) {
-    const z = SHOP_Z - 10.5;
+    if (STREETS.some((s) => Math.abs(x - s) < 2.6)) continue;
+    const z = SHOP_Z - 3.9;
     const y = H(x, z);
     const b = cyl(0.14, 0.6, bolMat);
     b.position.set(x, y + 0.3, z);
@@ -332,7 +338,8 @@ export function buildProps(world, scene, M) {
   for (let i = 0; i < 4; i++) {
     for (let attempt = 0; attempt < 6; attempt++) {
       const spot = trashSpots[Math.floor(rng() * trashSpots.length)];
-      if (place('고양이', 'cat', spot.x + 1.2 + rng(), spot.z + 1.2 + rng(), null, false, { check: true })) break;
+      // §16.3 (FR-42) x 드리프트가 차선 쪽으로 밀던 것을 골목 진행 방향(z) 오프셋으로
+      if (place('고양이', 'cat', spot.x + (rng() - 0.5) * 0.8, spot.z + 1.2 + rng(), null, false, { check: true })) break;
     }
   }
 
@@ -341,9 +348,8 @@ export function buildProps(world, scene, M) {
     const rb = new THREE.Box3().setFromObject(M.railing);
     const rs = rb.getSize(new THREE.Vector3());
     const rAlongX = rs.x >= rs.z;
-    for (let i = 0; i < 3; i++) {
-      const x = -40 + i * 40;
-      const z = SHOP_Z - 11.5;
+    // §16.3 (FR-42) 구 좌표(z=66 차선 안) → 프롬나드 위. 세로 차선 교차 지점 회피
+    for (const [x, z] of [[-40, 73.6], [-8, 73.6], [40, -73.6]]) {
       const m = M.railing.clone(true);
       m.scale.multiplyScalar(0.7);
       m.position.set(x, H(x, z), z);
@@ -378,8 +384,9 @@ export function buildProps(world, scene, M) {
   }
 
   // ── 27 파라솔 (상가 앞) ──
-  for (let i = 0; i < 3; i++) {
-    place('파라솔', 'parasol', -37 + i * 45, SHOP_Z - 7.5);
+  // §16.3 (FR-42) 캐노피가 차선 위로 걸치던 구 좌표 → 프롬나드 위로
+  for (const [px2, pz2] of [[-37, 75], [8, 75], [53, -75]]) {
+    place('파라솔', 'parasol', px2, pz2);
   }
 
   // ── 28 빨래건조대 (옥상) ──
@@ -402,8 +409,15 @@ export function buildProps(world, scene, M) {
     const s = STREETS[Math.floor(rng() * STREETS.length)];
     const t = -70 + rng() * 140;
     const vertical = rng() < 0.5;
-    const x = (vertical ? s : t) + (rng() < 0.5 ? -1 : 1) * (ROAD_HALF + 1.2);
-    const z = (vertical ? t : s) + (rng() < 0.5 ? -1 : 1) * 1.5;
+    // §16.3 (FR-42) 구 코드는 가로 골목 케이스에서 lateral 오프셋이 1.5라 차선 안 식재.
+    // lateral은 도로 밖(±4.2), 골목 진행축은 ±1.5 지터 + 교차 차선 회피 밀어내기
+    const lat = (rng() < 0.5 ? -1 : 1) * (ROAD_HALF + 1.2);
+    let a = t + (rng() < 0.5 ? -1 : 1) * 1.5;
+    for (const c of STREETS) {
+      if (Math.abs(a - c) < 3.4) { a = c + (a >= c ? 1 : -1) * 3.4; break; }
+    }
+    const x = vertical ? s + lat : a;
+    const z = vertical ? a : s + lat;
     treeSpots.push([x, z, 4 + rng() * 2]);
   }
   // 외곽 원경 실루엣 나무 (§7.3 안개 속 실루엣)
@@ -491,7 +505,10 @@ export function placeParkedVehicles(world, scene, { sedan, truck }) {
       const vertical = rng() < 0.5;
       const line = STREETS[Math.floor(rng() * STREETS.length)];
       const t = -70 + rng() * 130;
-      const offset = (rng() < 0.5 ? -1 : 1) * (ROAD_HALF - 1.05);
+      // §16.3 (FR-42) 차폭(1.65)이 차선(±1.9)을 침범하지 않게 인도 걸침 주차로:
+      // 구 offset 1.95는 차체 절반이 차선 안이었다. 교차 골목 차선 구간도 회피
+      const offset = (rng() < 0.5 ? -1 : 1) * (ROAD_HALF - 0.15);
+      if (STREETS.some((s) => Math.abs(t - s) < 5)) continue;
       const x = vertical ? line + offset : t;
       const z = vertical ? t : line + offset;
       const car = (isTruck ? truck : sedan).clone(true);

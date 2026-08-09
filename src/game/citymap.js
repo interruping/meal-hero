@@ -92,7 +92,7 @@ export const LANE_HALF = 1.9; // 차도 반폭 — 차량은 이 안에서만 �
 const WALK_W = ROAD_HALF - LANE_HALF; // 인도 폭 1.1
 export const WALK_MID = LANE_HALF + WALK_W / 2; // 인도 중심선 ±2.45
 
-function roadStrip(cx, cz, w, len, alongZ, texName = 'road-spring', lift = 0.04, vTile = 8) {
+function roadStrip(cx, cz, w, len, alongZ, texName = 'road-spring', lift = 0.04, vTile = 8, uTile = null) {
   const seg = Math.ceil(len / 2);
   const geo = alongZ
     ? new THREE.PlaneGeometry(w, len, 1, seg)
@@ -109,7 +109,7 @@ function roadStrip(cx, cz, w, len, alongZ, texName = 'road-spring', lift = 0.04,
   const uv = geo.attributes.uv;
   for (let i = 0; i < uv.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
-    uv.setXY(i, (alongZ ? x : z) / (w), (alongZ ? z : x) / vTile);
+    uv.setXY(i, (alongZ ? x : z) / (uTile ?? w), (alongZ ? z : x) / vTile);
   }
   geo.computeVertexNormals();
   return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex(texName) }));
@@ -120,21 +120,43 @@ function buildRoads() {
   roads.name = 'roads';
   const sidewalks = new THREE.Group();
   sidewalks.name = 'sidewalks';
+  // §16.2 (FR-40) 교차로 체크무늬 제거 — 인도는 교차로 앞에서 끊는다.
+  // 세로 인도는 교차 도로 전폭(±ROAD_HALF)에서, 가로 인도는 차선(±LANE_HALF)에서
+  // 절단 → 교차로 내부는 전면 차도, 모서리는 가로 인도가 정확히 1회 커버 (겹침 0)
+  const spans = (cutHalf) => {
+    const out = [];
+    let a = -MAP_HALF;
+    for (const c of STREETS) {
+      if (c - cutHalf > a + 0.05) out.push([a, c - cutHalf]);
+      a = c + cutHalf;
+    }
+    if (MAP_HALF > a + 0.05) out.push([a, MAP_HALF]);
+    return out;
+  };
+  const walk = (cx, cz, len, alongZ) =>
+    roadStrip(cx, cz, WALK_W, len, alongZ, 'sidewalk-spring', 0.07, WALK_W);
   for (const s of STREETS) {
     // 차도 (계절 road-* 텍스처)
     roads.add(roadStrip(s, 0, LANE_HALF * 2, MAP_HALF * 2, true));
     roads.add(roadStrip(0, s, LANE_HALF * 2, MAP_HALF * 2, false));
     // 양측 인도 (계절 sidewalk-* 보도블럭, 차도보다 살짝 높게 — 연석 느낌)
     for (const side of [-1, 1]) {
-      sidewalks.add(roadStrip(s + side * WALK_MID, 0, WALK_W, MAP_HALF * 2, true, 'sidewalk-spring', 0.07, WALK_W));
-      sidewalks.add(roadStrip(0, s + side * WALK_MID, WALK_W, MAP_HALF * 2, false, 'sidewalk-spring', 0.07, WALK_W));
+      for (const [a, b] of spans(ROAD_HALF)) {
+        sidewalks.add(walk(s + side * WALK_MID, (a + b) / 2, b - a, true));
+      }
+      for (const [a, b] of spans(LANE_HALF)) {
+        sidewalks.add(walk((a + b) / 2, s + side * WALK_MID, b - a, false));
+      }
     }
   }
-  // §14.2 사방 상가 접근로 (북·남 가로 + 동·서 세로) — 차량 미주행, 전폭 차도 유지
-  roads.add(roadStrip(0, SHOP_Z - 3, 10, 150, false));
-  roads.add(roadStrip(0, -(SHOP_Z - 3), 10, 150, false));
-  roads.add(roadStrip(SHOP_Z - 3, 0, 10, 150, true));
-  roads.add(roadStrip(-(SHOP_Z - 3), 0, 10, 150, true));
+  // §16.1 (FR-38) 외곽 순환 도로 제거 — 접근로 링 대신 상가 앞 보행 프롬나드(보도블럭).
+  // 도로가 아니라 보행 광장: 픽업 지점(전면 4.7m)을 덮는 폭 7 스트립, 상가 군집 구간만
+  // lift 0.03: 골목 차도(0.04)가 프롬나드를 가로지르는 구간은 차도가 위에 오게
+  const PROM_MID = SHOP_Z + 0.5; // 중심 76.5 → 73~80 커버 (상가 전면 78·픽업 77.3)
+  sidewalks.add(roadStrip(-15, PROM_MID, 7, 78, false, 'sidewalk-spring', 0.03, WALK_W, WALK_W)); // 북
+  sidewalks.add(roadStrip(15, -PROM_MID, 7, 78, false, 'sidewalk-spring', 0.03, WALK_W, WALK_W)); // 남
+  sidewalks.add(roadStrip(PROM_MID, 0, 7, 54, true, 'sidewalk-spring', 0.03, WALK_W, WALK_W)); // 동
+  sidewalks.add(roadStrip(-PROM_MID, 0, 7, 54, true, 'sidewalk-spring', 0.03, WALK_W, WALK_W)); // 서
   return { roads, sidewalks };
 }
 
@@ -364,7 +386,8 @@ export function buildCity(scene) {
     villas,
     stairPassages: STAIR_PASSAGES,
     groundHeight: terrainHeight,
-    spawn: new THREE.Vector3(0, terrainHeight(0, 70), 70),
+    // §16.1 (FR-39) 시작 위치 차도 금지 — x=0 골목 동측 인도 위 (차선 |x|<1.9 밖)
+    spawn: new THREE.Vector3(WALK_MID, terrainHeight(WALK_MID, 70), 70),
     rng,
   };
 }
