@@ -41,6 +41,7 @@ export class Game {
     this.input = new Input(this.retro.renderer.domElement);
     this.ui = new UI(container);
     this.state = 'boot';
+    this._hadLock = false;
     this.stageIdx = 0;
     this.career = { deliveries: 0, revenue: 0, hits: 0, debt: TOTAL_DEBT };
 
@@ -52,7 +53,7 @@ export class Game {
     this.scene.add(this.sun);
 
     this.world = buildCity(this.scene);
-    this.props = buildProps(this.world, this.scene);
+    // 소품은 Meshy 모델 로드 후 init()에서 배치
     this.applySeason('spring'); // 타이틀 배경도 팔레트 적용
     this.player = new Player(this.world, this.scene);
     this.cam = new FollowCamera(this.world);
@@ -105,6 +106,18 @@ export class Game {
       loadModel('prop-parked-truck', 1.9),
     ]);
     placeParkedVehicles(this.world, this.scene, { sedan: parkedSedan, truck: parkedTruck });
+
+    // 소품 3D 모델 로드 → 배치 (§7.10 장식 오브젝트)
+    const PROP_HEIGHTS = {
+      vending: 1.9, hydrant: 0.75, bench: 0.85, pyeongsang: 0.5, trashpile: 0.85,
+      planter: 0.5, mailbox: 0.9, streetlamp: 4.6, pole: 7.5, boxes: 1.1,
+      parasol: 2.4, laundry: 1.4, cat: 0.45,
+    };
+    const propEntries = await Promise.all(
+      Object.entries(PROP_HEIGHTS).map(async ([k, h]) => [k, await loadModel(`prop3d-${k}`, h)]),
+    );
+    this.props = buildProps(this.world, this.scene, Object.fromEntries(propEntries));
+    this.applySeason('spring');
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;
     // 실루엣 아웃라인 (배경 분리) + 주인공 걷기 애니메이션
@@ -305,21 +318,26 @@ export class Game {
     const dt = Math.min((now - this._lastFrameAt) / 1000, 0.05);
     this._lastFrameAt = now;
 
+    // 락 없이도 시점 조작 가능하게 (락 실패 폴백)
+    this.input.freeLook = this.state === 'playing';
+
     if (this.state === 'playing') {
-      // 포인터록을 잃으면 일시정지
-      if (!this.input.pointerLocked) {
+      // 락을 잡았다가 잃은 경우(Esc)만 일시정지 — 락 실패 환경에선 그냥 계속
+      const locked = this.input.pointerLocked;
+      if (this._hadLock && !locked) {
+        this._hadLock = false;
         this.state = 'paused';
-        this.ui.showPause(() => this.input.requestPointerLock());
+        this.ui.showPause(() => {
+          this.ui.clearScreen();
+          this.state = 'playing';
+          this.input.requestPointerLock();
+        });
       } else {
+        this._hadLock = locked;
         this.player.update(dt, this.input, this.cam.yaw);
         this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle);
         this.obstacles.update(dt);
         this.updateHUD();
-      }
-    } else if (this.state === 'paused') {
-      if (this.input.pointerLocked) {
-        this.state = 'playing';
-        this.ui.clearScreen();
       }
     } else if (this.state === 'gameover') {
       if (this.input.justPressed('KeyR')) this.retry();

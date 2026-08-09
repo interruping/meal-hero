@@ -7,6 +7,8 @@ export class Input {
     this.mouseDX = 0;
     this.mouseDY = 0;
     this._locked = false;
+    // 포인터록 실패·미지원 환경 폴백: 플레이 중이면 락 없이도 마우스 시점 동작
+    this.freeLook = false;
     // 자동화 테스트용: 포인터록 없이 플레이 (?nolock)
     this.noLock = new URLSearchParams(window.location.search).has('nolock');
 
@@ -22,7 +24,7 @@ export class Input {
       this._locked = document.pointerLockElement === this.canvas;
     });
     document.addEventListener('mousemove', (e) => {
-      if (!this._locked) return;
+      if (!this._locked && !this.freeLook) return;
       this.mouseDX += e.movementX;
       this.mouseDY += e.movementY;
     });
