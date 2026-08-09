@@ -19,6 +19,7 @@ import { Pedestrians } from './pedestrians.js';
 import { tex } from './textures.js';
 import { AudioSys } from '../core/audio.js';
 import { setupWalkAnimation, addOutline } from './walkanim.js';
+import { NavMap } from './navmap.js';
 
 const SAVE_KEY = 'mealhero-save-v2'; // §12 경제 개편으로 세이브 포맷 리셋
 
@@ -114,6 +115,7 @@ export class Game {
       },
     });
     this.obstacles = new ObstacleManager(this.world, this.scene, this.player, this);
+    this.navMap = new NavMap(); // FR-20 네비게이션
     this.audio = new AudioSys();
     this.player.audio = this.audio;
 
@@ -596,6 +598,17 @@ export class Game {
       if (this.input.justPressed('Escape')) this._resumePause?.();
     } else if (this.state === 'gameover') {
       if (this.input.justPressed('KeyR')) this.retry();
+    }
+
+    // FR-20 네비게이션: M 홀드 동안 스마트폰 확대 + 지도 갱신 (게임은 계속 진행)
+    const navOpen = this.state === 'playing' && this.input.down('KeyM');
+    if (navOpen !== this._navOpen) {
+      this._navOpen = navOpen;
+      this.ui.setNav(navOpen);
+    }
+    if (navOpen) {
+      this.navMap.draw(this.ui.navCtx(), this.player, this.delivery.active);
+      this.ui.updateNavLegend(this.delivery.active, DELIVERY_COLORS_CSS);
     }
 
     // 앰비언트 애니메이션: 일시정지 외 상시 (타이틀 배경에도 생활감)

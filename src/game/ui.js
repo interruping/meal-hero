@@ -74,6 +74,25 @@ const CSS = `
 /* 부분 하트 (과속 충돌 0.25 단위 차감) */
 .hp-part { background: linear-gradient(90deg, #b5372f var(--f), rgba(181,55,47,0.25) var(--f));
   -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* FR-20 네비게이션 스마트폰: 평시 하단 peek → M 홀드 시 중앙으로 슬라이드 업 + 배경 블러 */
+#app > canvas { transition: filter 0.25s; }
+body.nav-open #app > canvas { filter: blur(7px) brightness(0.9); }
+#navphone { position: absolute; left: 50%; top: 100%; width: 344px;
+  transform: translate(-50%, -52px); z-index: 7;
+  transition: transform 0.32s cubic-bezier(0.2, 1.25, 0.4, 1);
+  background: #3a3a38; border: 3px solid #26262a; border-bottom: none;
+  border-radius: 14px 14px 0 0; padding: 8px 10px 16px;
+  box-shadow: 0 0 0 2px rgba(239,238,234,0.25), 6px 6px 0 rgba(38,38,42,0.4); }
+#navphone.up { transform: translate(-50%, calc(-50% - 50vh)); }
+#navphone .np-head { color: #efeeea; font-size: 14px; text-align: center;
+  padding: 2px 0 7px; letter-spacing: 3px; }
+#navphone .np-map { display: block; width: 100%; background: #e9e7e0;
+  border: 2px solid #26262a; image-rendering: pixelated; }
+#navphone .np-legend { margin-top: 8px; display: flex; flex-direction: column; gap: 3px;
+  font-size: 13px; color: #efeeea; min-height: 18px; }
+#navphone .np-legend .row { display: flex; gap: 7px; align-items: center; }
+#navphone .np-legend .dot { width: 10px; height: 10px; flex: none; border: 1px solid #efeeea; }
+#navphone .np-legend .sec { margin-left: auto; }
 /* FR-24 수령 코드 매칭: 영수증 4장 + 전폭 3초 바 + 우측 하단 접수증 */
 #codematch { position: absolute; inset: 0; display: none; z-index: 8;
   background: rgba(58,58,56,0.62); }
@@ -147,6 +166,11 @@ export class UI {
         <div id="hud-arrow">▲</div>
         <div id="hud-banner"></div>
         <div id="hud-toast"></div>
+        <div id="navphone">
+          <div class="np-head">MEAL NAV [M]</div>
+          <canvas class="np-map" width="320" height="380"></canvas>
+          <div class="np-legend"></div>
+        </div>
         <div id="codematch">
           <div class="cm-msg"></div>
           <div class="cm-bar"><i></i></div>
@@ -402,6 +426,27 @@ export class UI {
     b.style.display = 'block';
     clearTimeout(this.bannerTimeout);
     this.bannerTimeout = setTimeout(() => { b.style.display = 'none'; }, ms);
+  }
+
+  // FR-20 네비게이션 스마트폰: M 홀드 시 중앙 확대 + 배경 블러
+  setNav(open) {
+    this.el('#navphone').classList.toggle('up', open);
+    document.body.classList.toggle('nav-open', open);
+  }
+
+  navCtx() {
+    if (!this._navCtx) this._navCtx = this.el('#navphone .np-map').getContext('2d');
+    return this._navCtx;
+  }
+
+  updateNavLegend(active, colors) {
+    const rows = active.map((d) => `
+      <div class="row">
+        <span class="dot" style="background:${colors[d.colorIdx]}"></span>
+        <span>${d.phase === 'pickup' ? `픽업 ${d.shop.name}` : `배달 ${d.door.name}`}</span>
+        <span class="sec">${Math.max(0, Math.ceil(d.timeLeft))}초</span>
+      </div>`).join('');
+    this.el('#navphone .np-legend').innerHTML = rows || '<div class="row">진행 중인 배달 없음 — [1~4]로 의뢰 수락</div>';
   }
 
   // FR-24 수령 코드 매칭 오버레이
