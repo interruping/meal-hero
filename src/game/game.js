@@ -102,7 +102,7 @@ export class Game {
             : `배달 완료! +₩${paid.toLocaleString()}`,
           1800,
         );
-        this.audio.play('deliver');
+        this.audio.play(fast ? 'bonus' : 'deliver');
       },
       onExpired: (d) => {
         // §12.3 지각 수수료 — 순수익이 음수가 되는 순간 게임오버
@@ -201,7 +201,7 @@ export class Game {
     this.state = 'title';
     this.ui.setHudVisible(false);
     this.input.exitPointerLock();
-    this.audio.stopBGM();
+    this.audio.startBGM('menu'); // §12.6 메뉴 BGM (첫 제스처 시 재생 시작)
     const save = this.loadSave();
     this.ui.showTitle({
       onStart: () => this.startOpening(),
@@ -506,7 +506,7 @@ export class Game {
     const list = [...pool].sort(() => Math.random() - 0.5);
     this.codeMatch = { d, correctIdx: list.indexOf(myCode), timeLeft: 3 };
     this.ui.showCodeMatch(list, myCode);
-    this.audio.play('order');
+    this.audio.play('receipt');
   }
 
   updateCodeMatch(dt) {
@@ -532,7 +532,7 @@ export class Game {
     this.delivery.confirmPickup(cm.d, correct ? 0 : 5);
     if (!correct) {
       this.ui.toast('영수증 불일치! 배달 시간 -5초', 1800);
-      this.audio.play('miss');
+      this.audio.play('codeBad');
     }
   }
 
@@ -543,21 +543,30 @@ export class Game {
     this.stage_.hp -= n;
     this.career.hits++;
     this.cam.shake(0.5, 0.35);
-    this.audio.play('hit');
+    this.audio.play(cause === 'crash' ? 'crash' : 'hit');
     if (this.stage_.hp <= 0) this.gameOver('체력이 바닥났다. 병원비가 더 나오게 생겼다…');
   }
 
   onObstacleHit(type) {
     switch (type) {
-      case 'flyer': this.ui.toast('전단지를 받아버렸다… (감속)'); break;
-      case 'kid': this.ui.toast('쿵! 자전거 초딩과 충돌 (-체력, -5초)'); break;
+      case 'flyer':
+        this.ui.toast('전단지를 받아버렸다… (감속)');
+        this.audio.play('flyer'); // §12.6 방해요소 보이스
+        break;
+      case 'kid':
+        this.ui.toast('쿵! 자전거 초딩과 충돌 (-체력, -5초)');
+        this.audio.play('kid');
+        break;
       case 'pigeon':
         this.ui.pigeonFlash();
         this.cam.shake(0.8, 0.5);
         this.ui.toast('푸드덕!! 앞이 안 보인다');
         this.audio.play('pigeon');
         break;
-      case 'drunk': this.ui.toast('취객과 충돌! 조작이 반대로 꼬인다'); break;
+      case 'drunk':
+        this.ui.toast('취객과 충돌! 조작이 반대로 꼬인다');
+        this.audio.play('drunk');
+        break;
     }
   }
 
