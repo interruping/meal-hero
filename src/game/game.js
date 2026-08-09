@@ -10,8 +10,9 @@ import { DeliveryManager, DeliveryPhase } from './delivery.js';
 import { ObstacleManager } from './obstacles.js';
 import { STAGES, MAX_HP, MAX_MISSES, TOTAL_DEBT } from './stages.js';
 import { VEHICLES } from './vehicles.js';
-import { loadModel } from '../core/loader.js';
+import { loadModel, loadAnimated, instantiateAnimated, addSkinnedOutline } from '../core/loader.js';
 import { buildProps, placeParkedVehicles } from './props.js';
+import { Pedestrians } from './pedestrians.js';
 import { tex } from './textures.js';
 import { AudioSys } from '../core/audio.js';
 import { setupWalkAnimation, addOutline } from './walkanim.js';
@@ -120,10 +121,35 @@ export class Game {
     this.applySeason('spring');
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;
-    // 실루엣 아웃라인 (배경 분리) + 주인공 걷기 애니메이션
+    // 실루엣 아웃라인 (배경 분리)
     for (const m of Object.values(this.models)) addOutline(m);
-    this.walkRig = setupWalkAnimation(hero);
-    this.player.onWalkUpdate = (phase, amp) => this.walkRig.set(phase, amp);
+
+    // 주인공 스켈레톤 애니메이션 (Meshy 리깅): 달리기+대기 크로스페이드.
+    // 리깅 GLB 없으면 정적 모델 + 버텍스 쉬어 폴백
+    try {
+      const [runAsset, idleAsset] = await Promise.all([
+        loadAnimated('character-hero-run', 1.6),
+        loadAnimated('character-hero-idle', 1.6),
+      ]);
+      const inst = instantiateAnimated(runAsset);
+      addSkinnedOutline(inst.model, 0.02);
+      const run = inst.mixer.clipAction(runAsset.clips[0]);
+      const idle = inst.mixer.clipAction(idleAsset.clips[0]);
+      run.play(); idle.play();
+      run.setEffectiveWeight(0); idle.setEffectiveWeight(1);
+      this.heroAnim = { model: inst.model, mixer: inst.mixer, run, idle };
+      this.heroVisual = inst.model;
+    } catch {
+      this.heroAnim = null;
+      this.heroVisual = hero;
+      this.walkRig = setupWalkAnimation(hero);
+      this.player.onWalkUpdate = (phase, amp) => this.walkRig.set(phase, amp);
+    }
+
+    // 행인 배회 시스템 (리깅 GLB 있는 종류만 자동 포함)
+    this.peds = new Pedestrians(this.scene, this.world);
+    await this.peds.init();
+
     await this.obstacles.init();
     this.attachVehicleVisual('run'); // 블록아웃 캡슐 제거 (AC-19)
     this.showTitle();
@@ -204,7 +230,7 @@ export class Game {
   attachVehicleVisual(vehicleKey) {
     const holder = this.player.bodyHolder;
     holder.clear();
-    const hero = this.models.hero;
+    const hero = this.heroVisual ?? this.models.hero;
     if (vehicleKey === 'run') {
       hero.position.set(0, 0, 0);
       hero.rotation.x = 0;
@@ -220,6 +246,22 @@ export class Game {
       hero.rotation.x = vehicleKey === 'kickboard' ? 0 : 0.12;
       holder.add(hero);
     }
+  }
+
+  // 스켈레톤 달리기·대기 크로스페이드 — 속도 비례 가중치/재생속도
+  updateHeroAnim(dt) {
+    const a = this.heroAnim;
+    if (!a) return;
+    const p = this.player;
+    const speed2D = Math.hypot(p.vel.x, p.vel.z);
+    const isRun = p.vehicleKey === 'run' || !p.vehicleKey;
+    const runW = isRun && p.grounded && speed2D > 0.4
+      ? Math.min(speed2D / p.vehicle.maxSpeed, 1) : 0;
+    const w = a.run.getEffectiveWeight() + (runW - a.run.getEffectiveWeight()) * Math.min(1, dt * 10);
+    a.run.setEffectiveWeight(w);
+    a.idle.setEffectiveWeight(1 - w);
+    a.run.timeScale = 0.55 + (speed2D / p.vehicle.maxSpeed) * 0.75;
+    a.mixer.update(dt);
   }
 
   applySeason(key) {
@@ -341,6 +383,12 @@ export class Game {
       }
     } else if (this.state === 'gameover') {
       if (this.input.justPressed('KeyR')) this.retry();
+    }
+
+    // 앰비언트 애니메이션: 일시정지 외 상시 (타이틀 배경에도 생활감)
+    if (this.state !== 'paused') {
+      this.updateHeroAnim(dt);
+      this.peds?.update(dt);
     }
 
     this.cam.update(dt, this.input, this.player.pos);
