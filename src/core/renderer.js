@@ -2,8 +2,8 @@ import * as THREE from 'three';
 
 // §7.1 렌더링 파이프라인: 640×360 고정 렌더타깃 → nearest 업스케일.
 // 후처리(§7.9 포스터라이즈+디더)는 같은 업스케일 패스의 셰이더 유니폼으로 토글한다.
-export const RENDER_W = 640;
-export const RENDER_H = 360;
+export const RENDER_W = 960;
+export const RENDER_H = 540;
 
 const UPSCALE_VERT = /* glsl */ `
 varying vec2 vUv;

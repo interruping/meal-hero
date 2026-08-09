@@ -138,9 +138,29 @@ export class Player {
     // 비주얼 동기화 + 통짜 바운스 (§7.7 관절 애니메이션 최소)
     this.rig.position.copy(this.pos);
     this.rig.rotation.y = this.heading;
-    const bob = this.grounded && speed2D > 0.5 ? Math.abs(Math.sin(this.time * 10)) * 0.06 : 0;
+
+    // 걷기 애니메이션 (구보): 속도 비례 다리 스윙 위상
+    const isRun = this.vehicleKey === 'run' || !this.vehicleKey;
+    this.walkPhase = (this.walkPhase ?? 0) + speed2D * dt * 2.6;
+    const targetAmp = isRun && this.grounded && speed2D > 0.4
+      ? Math.min(speed2D / v.maxSpeed, 1)
+      : 0;
+    this.walkAmp = (this.walkAmp ?? 0) + (targetAmp - (this.walkAmp ?? 0)) * (1 - Math.exp(-10 * dt));
+    this.onWalkUpdate?.(this.walkPhase, this.walkAmp);
+
+    const bob = this.grounded && speed2D > 0.5 ? Math.abs(Math.sin(this.walkPhase)) * (isRun ? 0.05 : 0.03) : 0;
     this.bodyHolder.position.y = bob;
-    this.bodyHolder.rotation.z = this.grounded && speed2D > 1 ? Math.sin(this.time * 10) * 0.04 : 0;
+
+    // 탈것: 코너링 기울임(뱅킹), 구보: 좌우 사보 흔들림
+    if (!isRun) {
+      const headingRate = (this.heading - (this._prevHeading ?? this.heading)) / Math.max(dt, 1e-4);
+      const targetLean = Math.max(-0.35, Math.min(0.35, -headingRate * 0.05 * Math.min(speed2D / 8, 1)));
+      this._lean = (this._lean ?? 0) + (targetLean - (this._lean ?? 0)) * (1 - Math.exp(-8 * dt));
+      this.bodyHolder.rotation.z = this._lean;
+    } else {
+      this.bodyHolder.rotation.z = this.grounded && speed2D > 1 ? Math.sin(this.walkPhase) * 0.03 : 0;
+    }
+    this._prevHeading = this.heading;
   }
 
   resolveCollisions() {

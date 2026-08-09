@@ -16,31 +16,35 @@ const CSS = `
   padding: 22px 30px; max-width: 560px; image-rendering: pixelated; }
 .mh-title { font-size: 44px; letter-spacing: 4px; margin: 0; color: #3a3a38; }
 .mh-sub { font-size: 15px; margin: 6px 0 0; color: #6a6a66; }
-.mh-btn { pointer-events: auto; font-family: inherit; font-size: 17px; padding: 10px 22px; margin: 4px;
+.mh-btn { pointer-events: auto; font-family: inherit; font-size: 19px; padding: 12px 26px; margin: 4px;
   background: #3a3a38; color: #efeeea; border: 2px solid #3a3a38; cursor: pointer; }
 .mh-btn:hover { background: #b5372f; border-color: #b5372f; }
-.mh-btn.small { font-size: 14px; padding: 6px 12px; }
-.mh-controls { font-size: 13px; line-height: 1.9; color: #5a5a56; text-align: left; display: inline-block; }
-.mh-caption { font-size: 20px; line-height: 1.8; }
-.mh-hint { font-size: 12px; color: #8a8a86; }
+.mh-btn.small { font-size: 16px; padding: 8px 14px; }
+.mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block; }
+.mh-caption { font-size: 22px; line-height: 1.8; }
+.mh-hint { font-size: 14px; color: #7a7a76; }
 /* HUD */
 #hud { position: absolute; inset: 0; display: none; }
-.hud-panel { position: absolute; background: rgba(239,238,234,0.92); border: 2px solid #3a3a38; padding: 6px 10px; font-size: 14px; }
-#hud-money { top: 10px; left: 10px; line-height: 1.5; }
-#hud-hp { top: 10px; right: 10px; font-size: 18px; letter-spacing: 2px; }
-#hud-timer { top: 10px; left: 50%; transform: translateX(-50%); text-align: center; min-width: 170px; }
-#hud-timer .bar { height: 8px; background: #c6c2b4; margin-top: 4px; border: 1px solid #3a3a38; }
+.hud-panel { position: absolute; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
+  padding: 8px 12px; font-size: 17px; box-shadow: 3px 3px 0 rgba(58,58,56,0.45); }
+#hud-money { top: 12px; left: 12px; line-height: 1.55; }
+#hud-hp { top: 12px; right: 12px; font-size: 22px; letter-spacing: 2px; color: #b5372f; }
+#hud-timer { top: 12px; left: 50%; transform: translateX(-50%); text-align: center; min-width: 220px; }
+#hud-timer .bar { height: 10px; background: #c6c2b4; margin-top: 5px; border: 1px solid #3a3a38; }
 #hud-timer .fill { height: 100%; background: #4f6d8f; width: 100%; }
 #hud-timer.low .fill { background: #b5372f; }
-#hud-stage { bottom: 10px; left: 10px; font-size: 13px; }
-#hud-hint { bottom: 12px; left: 50%; transform: translateX(-50%); font-size: 15px; display: none; }
-#hud-arrow { position: absolute; top: 64px; left: 50%; width: 34px; height: 34px; margin-left: -17px;
-  font-size: 30px; color: #b5372f; text-align: center; line-height: 34px;
-  text-shadow: 1px 1px 0 #efeeea; }
-#hud-banner { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 22px;
-  background: rgba(239,238,234,0.95); border: 3px solid #3a3a38; padding: 12px 26px; display: none; text-align: center; }
-#hud-toast { position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); font-size: 15px;
-  color: #efeeea; text-shadow: 1px 1px 0 #3a3a38; display: none; text-align: center; }
+#hud-stage { bottom: 12px; left: 12px; font-size: 15px; }
+#hud-hint { bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 19px; display: none;
+  background: #3a3a38; color: #efeeea; border-color: #efeeea; }
+#hud-arrow { position: absolute; top: 76px; left: 50%; width: 40px; height: 40px; margin-left: -20px;
+  font-size: 36px; color: #b5372f; text-align: center; line-height: 40px;
+  text-shadow: 2px 2px 0 #efeeea, -1px -1px 0 #efeeea; }
+#hud-banner { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;
+  background: rgba(246,245,241,0.97); border: 3px solid #3a3a38; padding: 14px 30px; display: none;
+  text-align: center; box-shadow: 4px 4px 0 rgba(58,58,56,0.45); }
+#hud-toast { position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); font-size: 18px;
+  color: #efeeea; text-shadow: 2px 2px 0 #3a3a38, -1px -1px 0 #3a3a38, 1px -1px 0 #3a3a38, -1px 1px 0 #3a3a38;
+  display: none; text-align: center; }
 /* 비둘기 시야 방해 */
 .pigeon-wing { position: absolute; width: 160px; height: 90px; background: #5c5c58; border-radius: 50%;
   opacity: 0.9; animation: wing-fly 1.4s ease-out forwards; }
