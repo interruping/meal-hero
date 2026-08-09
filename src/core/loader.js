@@ -7,6 +7,8 @@ const loader = new GLTFLoader();
 const cache = new Map();
 
 export const ASSET_BASE = import.meta.env.BASE_URL;
+// GLB 갱신 시 브라우저가 구버전 캐시를 계속 쓰는 문제 방지 — 에셋 수정 시 올릴 것
+const MODEL_V = '?v=3';
 
 function prepare(root) {
   root.traverse((o) => {
@@ -36,7 +38,7 @@ function prepare(root) {
 
 async function loadRaw(name) {
   if (!cache.has(name)) {
-    cache.set(name, loader.loadAsync(`${ASSET_BASE}models/${name}.glb`).then((g) => {
+    cache.set(name, loader.loadAsync(`${ASSET_BASE}models/${name}.glb${MODEL_V}`).then((g) => {
       prepare(g.scene);
       return g.scene;
     }));
@@ -48,7 +50,7 @@ async function loadRaw(name) {
 const animCache = new Map();
 export async function loadAnimated(name, targetHeight) {
   if (!animCache.has(name)) {
-    animCache.set(name, loader.loadAsync(`${ASSET_BASE}models/${name}.glb`).then((g) => {
+    animCache.set(name, loader.loadAsync(`${ASSET_BASE}models/${name}.glb${MODEL_V}`).then((g) => {
       prepare(g.scene);
       g.scene.traverse((o) => { if (o.isSkinnedMesh) o.frustumCulled = false; });
       return { proto: g.scene, clips: g.animations, targetHeight };
