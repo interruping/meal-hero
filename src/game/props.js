@@ -78,7 +78,15 @@ export function buildProps(world, scene, M) {
   const metalMat = sharedMat('shared-metal');
   const poleTops = [];
   for (const sx of [-66, 0, 66]) {
-    for (let z = -75; z <= 60; z += 27) {
+    for (let zBase = -75; zBase <= 60; zBase += 27) {
+      // 가로 골목 노면 위(z=33 등)에 서는 것 방지 — 골목에 걸치면 밀어냄
+      let z = zBase;
+      for (const s of STREETS) {
+        if (Math.abs(z - s) < ROAD_HALF + 1) {
+          z = s + (z >= s ? 1 : -1) * (ROAD_HALF + 1.2);
+          break;
+        }
+      }
       const px = sx + ROAD_HALF + 0.6;
       const py = H(px, z);
       // 실제 전봇대 비율로 슬림하게 (모델이 통짜로 굵게 나옴)
