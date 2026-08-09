@@ -20,6 +20,13 @@ function prepare(root) {
         }
         m.metalness = 0;
         m.roughness = 1;
+        // Meshy GLB가 emissiveTexture(=베이스컬러)를 넣어 자체발광함 — 조명 무시로
+        // 캐릭터만 밝아지므로 전부 제거 (피격 플래시는 단색 emissive만 사용)
+        if (m.emissive) {
+          m.emissive.setHex(0x000000);
+          m.emissiveMap = null;
+          m.needsUpdate = true;
+        }
       }
       o.castShadow = false;
       o.receiveShadow = false;
