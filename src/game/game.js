@@ -243,9 +243,11 @@ export class Game {
       }
     });
     if (!bone) return;
-    // 원하는 가방 위치(래퍼 공간 0,0.68,-0.26)를 본 로컬로 변환해 마운트 생성
-    const desired = new THREE.Matrix4()
-      .multiplyMatrices(inst.matrixWorld, new THREE.Matrix4().makeTranslation(0, 0.68, -0.26));
+    // 가방 모델은 +z가 본체, -z가 끈 — 180° 돌려 본체가 등 밖(-z)으로 나오게 한다.
+    // 본체 근접면(로컬 +0.07)이 등판(-0.17)에 닿도록 z -0.10 (끈은 몸속에 묻힘)
+    const local = new THREE.Matrix4().makeTranslation(0, 0.68, -0.1)
+      .multiply(new THREE.Matrix4().makeRotationY(Math.PI));
+    const desired = new THREE.Matrix4().multiplyMatrices(inst.matrixWorld, local);
     const m = new THREE.Matrix4().copy(bone.matrixWorld).invert().multiply(desired);
     const mount = new THREE.Group();
     m.decompose(mount.position, mount.quaternion, mount.scale);
