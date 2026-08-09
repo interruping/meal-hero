@@ -11,6 +11,14 @@ const H = terrainHeight;
 function box(w, h, d, material) {
   return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
 }
+// 전면 텍스처 + 나머지 면 중립 재질 (6면 동일 텍스처 방지)
+// BoxGeometry 면 순서: +x, -x, +y, -y, +z, -z
+function boxFaced(w, h, d, frontMat, sideMat, topMat = sideMat) {
+  return new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    [sideMat, sideMat, topMat, topMat, frontMat, sideMat],
+  );
+}
 function cyl(r, h, material, segs = 8) {
   return new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, segs), material);
 }
@@ -40,6 +48,7 @@ export function buildProps(world, scene) {
   // ── 1·2 전봇대 + 전선 ──
   const poleMat = sharedMat('prop-pole', { repeatX: 1, repeatY: 4 });
   const wireMat = sharedMat('shared-metal');
+  const metalMat = sharedMat('shared-metal');
   const poleTops = [];
   for (const sx of [-66, 0, 66]) {
     for (let z = -75; z <= 60; z += 27) {
@@ -134,9 +143,11 @@ export function buildProps(world, scene) {
 
   // ── 7 실외기 (빌라 벽) ──
   const acMat = sharedMat('prop-aircon');
+  const acSideMat = sharedMat('shared-metal');
   for (const v of world.villas) {
     if (rng() < 0.5) continue;
-    const ac = box(0.85, 0.6, 0.35, acMat);
+    const ac = boxFaced(0.85, 0.6, 0.35, acMat, acSideMat);
+    ac.rotation.y = v.faceDir > 0 ? Math.PI / 2 : -Math.PI / 2;
     ac.position.set(
       v.cx + v.faceDir * (v.w / 2 + 0.2),
       v.base + 1.1 + Math.floor(rng() * 2) * 2.6,
@@ -173,24 +184,28 @@ export function buildProps(world, scene) {
   // ── 11 계단 난간: citymap 계단부에 포함 ──
   typeSet.add('계단난간');
 
-  // ── 12 돌출 간판 (상가 측면) ──
+  // ── 12 돌출 간판 (상가 측면) — 넓은 양면만 간판, 나머지 금속 ──
   const signMat = sharedMat('prop-sign-vertical');
   for (let i = 0; i < 8; i++) {
     const sx = -67 + i * 15 + 6.2;
     const sz = SHOP_Z + 4;
     const y = H(sx, sz);
-    const sign = box(0.15, 2.2, 0.7, signMat);
+    const sign = new THREE.Mesh(
+      new THREE.BoxGeometry(0.15, 2.2, 0.7),
+      [signMat, signMat, metalMat, metalMat, metalMat, metalMat],
+    );
     sign.position.set(sx, y + 3.4, sz);
     add('돌출간판', sign);
   }
 
-  // ── 13 자판기 ──
+  // ── 13 자판기 (전면만 상품, 측·상면 금속) ──
   const vendMat = sharedMat('prop-vending');
   for (let i = 0; i < 6; i++) {
     const sx = -60 + i * 24;
     const sz = SHOP_Z - 8.6;
     const y = H(sx, sz);
-    const v = box(1.05, 1.9, 0.8, vendMat);
+    const v = boxFaced(1.05, 1.9, 0.8, vendMat, metalMat);
+    v.rotation.y = Math.PI; // 전면(-z, 마을쪽)
     v.position.set(sx, y + 0.95, sz);
     add('자판기', v, true);
   }
@@ -199,14 +214,16 @@ export function buildProps(world, scene) {
   const mailMat = sharedMat('prop-mailbox');
   for (const v of world.villas) {
     if (rng() < 0.7) continue;
-    const m = box(0.5, 0.7, 0.25, mailMat);
+    const m = boxFaced(0.5, 0.7, 0.25, mailMat, metalMat);
+    m.rotation.y = v.faceDir > 0 ? Math.PI / 2 : -Math.PI / 2;
     m.position.set(v.door.x - v.faceDir * 0.2, H(v.door.x, v.door.z) + 1.1, v.door.z + 0.9);
     add('우편함', m);
   }
 
-  // ── 15·16 주차 차량 (세단·트럭) — 골목 폭 좁히기 ──
+  // ── 15·16 주차 차량 (세단·트럭) — 골목 폭 좁히기. 측면 텍스처 + 지붕 금속 ──
   const sedanMat = sharedMat('prop-car-sedan');
   const truckMat = sharedMat('prop-car-truck');
+  const carTopMat = sharedMat('shared-metal', { repeatX: 2, repeatY: 2 });
   for (let i = 0; i < 12; i++) {
     const isTruck = i % 3 === 2;
     const vertical = rng() < 0.5;
@@ -216,11 +233,21 @@ export function buildProps(world, scene) {
     const x = vertical ? line + offset : t;
     const z = vertical ? t : line + offset;
     const y = H(x, z);
-    const carBody = box(vertical ? 1.75 : 4.3, isTruck ? 1.75 : 1.05, vertical ? 4.3 : 1.75, isTruck ? truckMat : sedanMat);
+    const bodyMat = isTruck ? truckMat : sedanMat;
+    const carBody = new THREE.Mesh(
+      new THREE.BoxGeometry(4.3, isTruck ? 1.75 : 1.05, 1.75),
+      // 긴 측면(±z 아님 — 길이축 x)엔 차량 텍스처, 지붕·바닥 금속
+      [bodyMat, bodyMat, carTopMat, carTopMat, bodyMat, bodyMat],
+    );
+    carBody.rotation.y = vertical ? Math.PI / 2 : 0;
     carBody.position.set(x, y + (isTruck ? 0.9 : 0.55), z);
     add(isTruck ? '주차트럭' : '주차세단', carBody, true, 0.1);
     if (!isTruck) {
-      const cabin = box(vertical ? 1.6 : 2.3, 0.55, vertical ? 2.3 : 1.6, sedanMat);
+      const cabin = new THREE.Mesh(
+        new THREE.BoxGeometry(2.3, 0.55, 1.6),
+        [sedanMat, sedanMat, carTopMat, carTopMat, sedanMat, sedanMat],
+      );
+      cabin.rotation.y = vertical ? Math.PI / 2 : 0;
       cabin.position.set(x, y + 1.3, z);
       add('주차세단', cabin);
     }
@@ -281,14 +308,14 @@ export function buildProps(world, scene) {
   const bannerMat = sharedMat('prop-banner');
   bannerMat.side = THREE.DoubleSide;
   for (const [bx, bz] of [[0, 50], [-33, -10], [33, 20]]) {
-    const y = H(bx, bz) + 3.2;
+    const y = H(bx, bz) + 4.2; // 카메라(높이 ~2.7)와 겹치지 않게
     const banner = plane(5.6, 0.85, bannerMat);
     banner.position.set(bx, y, bz);
     banner.rotation.y = rng() < 0.5 ? 0.15 : -0.1;
     add('현수막', banner);
     for (const off of [-2.9, 2.9]) {
-      const p = cyl(0.06, 3.6, wireMat);
-      p.position.set(bx + off, H(bx + off, bz) + 1.8, bz);
+      const p = cyl(0.06, 4.6, wireMat);
+      p.position.set(bx + off, H(bx + off, bz) + 2.3, bz);
       add('현수막', p);
     }
   }
