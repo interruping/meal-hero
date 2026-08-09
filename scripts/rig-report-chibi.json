@@ -1,0 +1,62 @@
+{
+  "ped-ajumma": {
+    "previewId": "019fe4b8-6255-7afa-85ef-10fa77c64f6b",
+    "refineId": "019fe4b9-878f-7fbb-b467-600007498c7f",
+    "rigId": "019fe4ba-ce34-7b4f-bc83-aed7bafab913",
+    "done": true
+  },
+  "ped-grandpa": {
+    "previewId": "019fe4b8-6259-7f80-8ca9-b55af80ac063",
+    "refineId": "019fe4b9-5e2d-7fae-b4af-44ff7a3e24d6",
+    "rigId": "019fe4ba-ced1-7b50-a9a4-35f875810507",
+    "done": true
+  },
+  "ped-schoolgirl": {
+    "previewId": "019fe4b8-624e-7fc6-afc9-41bb31fbbafa",
+    "refineId": "019fe4b9-86c0-7fba-9962-ef7c026473ef",
+    "rigId": "019fe4ba-cdf4-780a-8dad-44f73f0a328a",
+    "done": true
+  },
+  "ped-schoolboy": {
+    "previewId": "019fe4bb-8f6c-7b6d-8fad-eb8b95486b73",
+    "refineId": "019fe4bc-dca7-7ba7-870f-1e58bc36dd61",
+    "rigId": "019fe4bd-faca-7bcd-ab0e-2c8f3f243903",
+    "done": true
+  },
+  "ped-officeman": {
+    "previewId": "019fe4bb-97bb-783d-bdb6-76e1db4ef04c",
+    "refineId": "019fe4bc-dd4c-708e-a6e8-2240ca16f57d",
+    "rigId": "019fe4bd-d2e8-787f-907c-aaddc8b23ea6",
+    "done": true
+  },
+  "ped-officewoman": {
+    "previewId": "019fe4bb-b690-7840-8f73-fb8337b33a85",
+    "refineId": "019fe4bd-063e-7ba9-8b7d-44e449bdc119",
+    "rigId": "019fe4be-241a-7bce-892a-42090d6f9539",
+    "done": true
+  },
+  "ped-jogger": {
+    "previewId": "019fe4be-b916-789a-b5a2-3b399694f138",
+    "refineId": "019fe4c0-2fb2-7903-a80f-4fb3ec32f005",
+    "rigId": "019fe4c1-4efc-795b-82b8-c0b9ac7dcf0a",
+    "done": true
+  },
+  "ped-shopkeeper": {
+    "previewId": "019fe4be-e427-78a0-af40-cf272a8f4a5e",
+    "refineId": "019fe4c0-2fa9-7137-9f40-c312935c772a",
+    "rigId": "019fe4c1-256a-70fd-8b1f-eac50d1d2d26",
+    "done": true
+  },
+  "ped-rider": {
+    "previewId": "019fe4be-e57c-70c8-a8d8-ae5666383299",
+    "refineId": "019fe4c0-5a19-713d-bcaa-edacb6f6a4ff",
+    "rigId": "019fe4c1-7653-7c97-995b-d5c67898b6bd",
+    "done": true
+  },
+  "ped-hoodie": {
+    "previewId": "019fe4c2-0cc4-797e-8ba2-61b4189e5668",
+    "refineId": "019fe4c3-5bac-79df-8370-f9127db2fe73",
+    "rigId": "019fe4c6-8413-7d96-b6c1-b75eb3aa537b",
+    "done": true
+  }
+}
