@@ -45,6 +45,9 @@ const CSS = `
 #hud-toast { position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); font-size: 18px;
   color: #efeeea; text-shadow: 2px 2px 0 #3a3a38, -1px -1px 0 #3a3a38, 1px -1px 0 #3a3a38, -1px 1px 0 #3a3a38;
   display: none; text-align: center; }
+/* 부분 하트 (과속 충돌 0.25 단위 차감) */
+.hp-part { background: linear-gradient(90deg, #b5372f var(--f), rgba(181,55,47,0.25) var(--f));
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
 /* 비둘기 시야 방해 */
 .pigeon-wing { position: absolute; width: 160px; height: 90px; background: #5c5c58; border-radius: 50%;
   opacity: 0.9; animation: wing-fly 1.4s ease-out forwards; }
@@ -223,7 +226,18 @@ export class UI {
   updateHUD({ revenue, goal, hp, maxHp, stageLabel, vehicleLabel, timer }) {
     this.el('#hud-money').innerHTML =
       `매출 ₩${revenue.toLocaleString()}<br>목표 ₩${goal.toLocaleString()}`;
-    this.el('#hud-hp').textContent = '♥'.repeat(hp) + '♡'.repeat(Math.max(0, maxHp - hp));
+    // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
+    if (hp !== this._lastHp) {
+      this._lastHp = hp;
+      let hearts = '';
+      for (let i = 0; i < maxHp; i++) {
+        const f = Math.max(0, Math.min(1, hp - i));
+        if (f >= 1) hearts += '♥';
+        else if (f <= 0) hearts += '♡';
+        else hearts += `<span class="hp-part" style="--f:${f * 100}%">♥</span>`;
+      }
+      this.el('#hud-hp').innerHTML = hearts;
+    }
     this.el('#hud-stage').textContent = `${stageLabel} · ${vehicleLabel}`;
     const timerEl = this.el('#hud-timer');
     const fill = timerEl.querySelector('.fill');

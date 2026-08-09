@@ -57,6 +57,20 @@ export class Game {
     // 소품은 Meshy 모델 로드 후 init()에서 배치
     this.applySeason('spring'); // 타이틀 배경도 팔레트 적용
     this.player = new Player(this.world, this.scene);
+    // 탈것 과속 정면 충돌: 최고속 근접 상태로 벽·소품에 박으면 체력 0.25 차감 + 빨간 점멸.
+    // 법선 진입 속도 기준이라 벽에 스치는 주행은 면제. 구보는 면제
+    this.player.onWallImpact = (impact) => {
+      const p = this.player;
+      if (this.state !== 'playing' || p.vehicleKey === 'run' || !p.vehicleKey) return;
+      if (impact < p.vehicle.maxSpeed * 0.75) return;
+      if (p.time < (p.crashCooldownUntil ?? 0)) return;
+      p.crashCooldownUntil = p.time + 1.0;
+      p.flashUntil = p.time + 0.45;
+      p.vel.x *= 0.25;
+      p.vel.z *= 0.25;
+      this.damage(0.25, 'crash');
+      this.ui.toast('쾅! 과속 충돌 (-체력 ¼)');
+    };
     this.cam = new FollowCamera(this.world);
     this.delivery = new DeliveryManager(this.world, this.player, this.scene, {
       onOrder: (o) => {
