@@ -275,8 +275,16 @@
     {
       "name": "shared-concrete",
       "ok": true
+    },
+    {
+      "name": "shop-baekban",
+      "ok": true
+    },
+    {
+      "name": "shop-super",
+      "ok": true
     }
   ],
-  "generated": 69,
+  "generated": 71,
   "failed": 0
 }

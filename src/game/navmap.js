@@ -1,22 +1,25 @@
 import { MAP_HALF, STREETS, ROAD_HALF, SHOP_Z } from './citymap.js';
 import { DELIVERY_COLORS_CSS } from './delivery.js';
 
-// FR-20 네비게이션 지도 (§12.2): 격자 도로망 위 다익스트라 최단 경로.
-// 세로 골목 x∈STREETS (z -85~85), 가로 골목 z∈STREETS (x -85~85), 상가골목 z=SHOP_Z-3 (x -75~75)
-const SHOP_ROAD_Z = SHOP_Z - 3;
+// FR-20 네비게이션 지도 (§12.2 + §14.2): 격자 도로망 위 다익스트라 최단 경로.
+// 세로 골목 x∈STREETS (z -85~85), 가로 골목 z∈STREETS (x -85~85),
+// 사방 상가 접근로 x·z=±(SHOP_Z-3) (길이 150 → ±75)
+const EDGE_ROAD = SHOP_Z - 3;
 const EXT = MAP_HALF; // 골목 끝
+const lineLimit = (v) => (Math.abs(v) === EDGE_ROAD ? 75 : EXT);
 
 export class NavMap {
   constructor() {
-    // 노드: 세로×(가로+상가골목) 교차점
-    this.zLines = [...STREETS, SHOP_ROAD_Z].sort((a, b) => a - b);
+    // 노드: (세로 골목+동서 접근로) × (가로 골목+남북 접근로) 교차점
+    this.xLines = [...STREETS, -EDGE_ROAD, EDGE_ROAD].sort((a, b) => a - b);
+    this.zLines = [...STREETS, -EDGE_ROAD, EDGE_ROAD].sort((a, b) => a - b);
     this.nodes = [];
     this.key = (xi, zi) => `${xi},${zi}`;
     this.idx = new Map();
-    for (let xi = 0; xi < STREETS.length; xi++) {
+    for (let xi = 0; xi < this.xLines.length; xi++) {
       for (let zi = 0; zi < this.zLines.length; zi++) {
         this.idx.set(this.key(xi, zi), this.nodes.length);
-        this.nodes.push({ x: STREETS[xi], z: this.zLines[zi] });
+        this.nodes.push({ x: this.xLines[xi], z: this.zLines[zi] });
       }
     }
     this.adj = this.nodes.map(() => []);
@@ -25,13 +28,13 @@ export class NavMap {
       this.adj[a].push([b, d]);
       this.adj[b].push([a, d]);
     };
-    for (let xi = 0; xi < STREETS.length; xi++) {
+    for (let xi = 0; xi < this.xLines.length; xi++) {
       for (let zi = 0; zi + 1 < this.zLines.length; zi++) {
         link(this.idx.get(this.key(xi, zi)), this.idx.get(this.key(xi, zi + 1)));
       }
     }
     for (let zi = 0; zi < this.zLines.length; zi++) {
-      for (let xi = 0; xi + 1 < STREETS.length; xi++) {
+      for (let xi = 0; xi + 1 < this.xLines.length; xi++) {
         link(this.idx.get(this.key(xi, zi)), this.idx.get(this.key(xi + 1, zi)));
       }
     }
@@ -40,17 +43,18 @@ export class NavMap {
   // 도로망 위 최근접 투영점 + 그 투영점이 놓인 도로의 양끝 이웃 노드
   project(p) {
     let best = null;
-    // 세로 골목
-    for (let xi = 0; xi < STREETS.length; xi++) {
-      const z = Math.max(-EXT, Math.min(EXT, p.z));
-      const dist = Math.abs(p.x - STREETS[xi]);
-      if (!best || dist < best.dist) best = { dist, x: STREETS[xi], z, vertical: true, line: xi };
+    // 세로 골목 + 동서 접근로
+    for (let xi = 0; xi < this.xLines.length; xi++) {
+      const lim = lineLimit(this.xLines[xi]);
+      const z = Math.max(-lim, Math.min(lim, p.z));
+      const dist = Math.hypot(p.x - this.xLines[xi], p.z - z);
+      if (!best || dist < best.dist) best = { dist, x: this.xLines[xi], z, vertical: true, line: xi };
     }
-    // 가로 골목 + 상가골목
+    // 가로 골목 + 남북 접근로
     for (let zi = 0; zi < this.zLines.length; zi++) {
-      const lim = this.zLines[zi] === SHOP_ROAD_Z ? 75 : EXT;
+      const lim = lineLimit(this.zLines[zi]);
       const x = Math.max(-lim, Math.min(lim, p.x));
-      const dist = Math.abs(p.z - this.zLines[zi]);
+      const dist = Math.hypot(p.z - this.zLines[zi], p.x - x);
       if (dist < best.dist) best = { dist, x, z: this.zLines[zi], vertical: false, line: zi };
     }
     return best;
@@ -64,8 +68,8 @@ export class NavMap {
         out.push([this.idx.get(this.key(proj.line, zi)), Math.abs(this.zLines[zi] - proj.z)]);
       }
     } else {
-      for (let xi = 0; xi < STREETS.length; xi++) {
-        out.push([this.idx.get(this.key(xi, proj.line)), Math.abs(STREETS[xi] - proj.x)]);
+      for (let xi = 0; xi < this.xLines.length; xi++) {
+        out.push([this.idx.get(this.key(xi, proj.line)), Math.abs(this.xLines[xi] - proj.x)]);
       }
     }
     // 같은 도로 위 모든 교차점을 후보로 하되 가까운 2개만 연결 (경로 자연스러움)
@@ -147,11 +151,18 @@ export class NavMap {
       ctx.lineTo(sx(EXT), sy(s));
       ctx.stroke();
     }
+    // 사방 상가 접근로 (§14.2) — 조금 굵게
     ctx.lineWidth = roadW * 1.6;
-    ctx.beginPath();
-    ctx.moveTo(sx(-75), sy(SHOP_ROAD_Z));
-    ctx.lineTo(sx(75), sy(SHOP_ROAD_Z));
-    ctx.stroke();
+    for (const e of [EDGE_ROAD, -EDGE_ROAD]) {
+      ctx.beginPath();
+      ctx.moveTo(sx(-75), sy(e));
+      ctx.lineTo(sx(75), sy(e));
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(sx(e), sy(-75));
+      ctx.lineTo(sx(e), sy(75));
+      ctx.stroke();
+    }
 
     // 배달 루트 + 목적지 핀 + 남은 시간 (색상별 — §12.2)
     for (const d of active) {

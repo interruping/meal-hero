@@ -12,7 +12,8 @@ const CSS = `
   color: #3a3a38; user-select: none; overflow: hidden; }
 #ui * { box-sizing: border-box; }
 .mh-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 18px; pointer-events: auto; background: rgba(58,58,56,0.55); text-align: center; }
+  justify-content: center; gap: 18px; pointer-events: auto; background: rgba(58,58,56,0.55); text-align: center;
+  z-index: 9; /* 튜토리얼 하이라이트(z6)·코드매칭(z8)보다 위 — 일시정지 등 전체 화면 우선 */ }
 .mh-panel { background: #efeeea; border: 3px solid #3a3a38; box-shadow: 6px 6px 0 rgba(58,58,56,0.5);
   padding: 22px 30px; max-width: 560px; image-rendering: pixelated; }
 .mh-title { font-size: 44px; letter-spacing: 4px; margin: 0; color: #3a3a38; }
@@ -24,6 +25,35 @@ const CSS = `
 .mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block; }
 .mh-caption { font-size: 22px; line-height: 1.8; }
 .mh-hint { font-size: 14px; color: #7a7a76; }
+/* §14.6 튜토리얼 (FR-32): 배경 디밍 + 대상 UI 테두리 강조 + 안내 패널 */
+#tut-dim { position: absolute; inset: 0; background: rgba(38,38,42,0.35); display: none;
+  z-index: 5; pointer-events: none; }
+.tut-glow { z-index: 6 !important; outline: 3px solid #c9a13b; outline-offset: 3px;
+  animation: tut-pulse 1s ease-in-out infinite; }
+@keyframes tut-pulse { 0%, 100% { outline-color: #c9a13b; } 50% { outline-color: #efeeea; } }
+#tut-panel { position: absolute; top: 33%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 6; background: #efeeea; border: 3px solid #3a3a38; padding: 12px 24px;
+  box-shadow: 4px 4px 0 rgba(58,58,56,0.5); font-size: 17px; display: none;
+  text-align: center; max-width: 480px; line-height: 1.7; }
+#tut-panel .t-step { font-size: 12px; color: #b5372f; margin-bottom: 4px; }
+/* §14.5 오프닝: 주인공 모델 + 타자기 대사 */
+.op-row { display: flex; gap: 16px; align-items: center; text-align: left; }
+.op-hero { flex: none; width: 150px; height: 150px; background: #d8d5cb;
+  border: 2px solid #3a3a38; overflow: hidden; }
+.op-hero canvas { width: 100%; height: 100%; display: block; }
+#op-line { flex: 1; min-height: 3.6em; }
+#op-line .caret { display: inline-block; width: 0.55em; background: #3a3a38;
+  height: 1em; vertical-align: -0.1em; animation: caret-blink 0.8s steps(1) infinite; }
+@keyframes caret-blink { 50% { opacity: 0; } }
+/* §14.4 방해요소 소개 (스테이지 인트로 내 3D 턴테이블) */
+.intro-obstacle { display: flex; gap: 14px; margin: 14px auto 4px; border: 2px solid #3a3a38;
+  background: #e5e3dc; padding: 10px 12px; align-items: center; text-align: left; max-width: 470px; }
+.intro-obstacle .io-view { flex: none; width: 150px; height: 150px; background: #d8d5cb;
+  border: 2px solid #3a3a38; overflow: hidden; }
+.intro-obstacle .io-view canvas { width: 100%; height: 100%; display: block; }
+.intro-obstacle .io-tag { font-size: 12px; color: #b5372f; }
+.intro-obstacle .io-name { font-size: 18px; margin: 3px 0 5px; }
+.intro-obstacle .io-desc { font-size: 13px; color: #4a4a46; line-height: 1.65; }
 /* HUD */
 #hud { position: absolute; inset: 0; display: none; }
 .hud-panel { position: absolute; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
@@ -46,6 +76,12 @@ const CSS = `
 .offer-slot .key { display: inline-block; background: #3a3a38; color: #efeeea; font-size: 12px;
   padding: 0 5px; margin-right: 4px; }
 .offer-slot .o-pay { color: #b5372f; }
+/* FR-29 (§14.3) 플레이어→가게 거리 + 최근접 뱃지 */
+.offer-slot .o-dist { float: right; color: #4a4a46; }
+.offer-slot .o-near { position: absolute; top: -9px; right: -5px; background: #b5372f;
+  color: #efeeea; font-size: 10px; padding: 1px 5px; border: 1px solid #efeeea;
+  box-shadow: 2px 2px 0 rgba(58,58,56,0.45); display: none; }
+.offer-slot.nearest .o-near { display: block; }
 .offer-slot .o-ttl { height: 5px; background: #c6c2b4; border: 1px solid #3a3a38; margin-top: 3px; }
 .offer-slot .o-ttl i { display: block; height: 100%; background: #4f6d8f; }
 .offer-slot.empty { opacity: 0.45; }
@@ -62,6 +98,18 @@ const CSS = `
 .active-row.low .a-sec { color: #b5372f; font-weight: bold; }
 #hud-hint { bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 19px; display: none;
   background: #3a3a38; color: #efeeea; border-color: #efeeea; }
+/* §14.1 좌측 하단 스킬 UI: 대시 쿨타임 게이지 + 에너지 드링크 키·가격 안내 */
+#hud-skills { position: absolute; bottom: 54px; left: 12px; display: flex; gap: 6px; }
+.skill-box { width: 86px; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
+  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); padding: 5px 4px 4px; font-size: 12px;
+  text-align: center; line-height: 1.45; position: relative; overflow: hidden; }
+.skill-box .s-icon { font-size: 19px; display: block; }
+.skill-box .s-key { display: inline-block; background: #3a3a38; color: #efeeea;
+  padding: 0 5px; font-size: 11px; }
+.skill-box .s-cd { position: absolute; left: 0; bottom: 0; width: 100%; height: 0%;
+  background: rgba(58,58,56,0.3); pointer-events: none; }
+.skill-box.off { filter: grayscale(1); opacity: 0.6; }
+.skill-box.active { border-color: #b5372f; color: #b5372f; }
 #hud-arrow { position: absolute; top: 86px; left: 50%; width: 40px; height: 40px; margin-left: -20px;
   font-size: 36px; color: #b5372f; text-align: center; line-height: 40px;
   text-shadow: 2px 2px 0 #efeeea, -1px -1px 0 #efeeea; }
@@ -154,14 +202,27 @@ export class UI {
         <div id="hud-offers">${[1, 2, 3, 4].map((n) => `
           <div class="offer-slot empty" data-slot="${n}">
             <span class="key">${n}</span><span class="o-route">의뢰 대기</span><br>
-            <span class="o-pay"></span>
+            <span class="o-pay"></span><span class="o-dist"></span>
             <div class="o-ttl"><i></i></div>
+            <span class="o-near">제일 가까운</span>
           </div>`).join('')}
         </div>
         <div id="hud-active"></div>
         <div id="hud-hp" class="hud-panel"></div>
         <div id="hud-clock" class="hud-panel"><span class="c-icon">🕐</span><span id="hud-clock-text">10:00</span></div>
         <div id="hud-stage" class="hud-panel"></div>
+        <div id="hud-skills">
+          <div class="skill-box" id="skill-dash">
+            <span class="s-icon">💨</span>
+            <span class="s-key">Shift</span> 대시
+            <div class="s-cd"></div>
+          </div>
+          <div class="skill-box" id="skill-drink">
+            <span class="s-icon">🥤</span>
+            <span class="s-key">Q</span> ₩1,500
+            <div class="s-cd"></div>
+          </div>
+        </div>
         <div id="hud-hint" class="hud-panel"></div>
         <div id="hud-arrow">▲</div>
         <div id="hud-banner"></div>
@@ -171,6 +232,8 @@ export class UI {
           <canvas class="np-map" width="320" height="380"></canvas>
           <div class="np-legend"></div>
         </div>
+        <div id="tut-dim"></div>
+        <div id="tut-panel"></div>
         <div id="codematch">
           <div class="cm-msg"></div>
           <div class="cm-bar"><i></i></div>
@@ -214,7 +277,8 @@ export class UI {
         <div style="margin-top:14px" class="mh-controls">
           [W A S D] 이동 · [마우스] 시점 · [Space] 점프<br>
           [1~4] 배달 의뢰 수락 / 수령 영수증 선택 · [E] 픽업 / 전달<br>
-          [M] 누르고 있으면 네비게이션 · [Shift] 스킬(탈것) · [R] 재시작
+          [Shift] 대시 (3초 가속, 쿨 10초) · [Q] 에너지 드링크 ₩1,500 (쿨 초기화)<br>
+          [M] 누르고 있으면 네비게이션 · [R] 재시작
         </div>
         <div style="margin-top:14px">
           <div class="mh-hint">심사 모드 — 스테이지 바로가기</div>
@@ -231,36 +295,77 @@ export class UI {
       b.addEventListener('click', () => onStage(Number(b.dataset.stage))));
   }
 
-  showOpening(lines, onDone) {
+  // FR-31 (§14.5): 초당 10자 타자기 + 주인공 모델 캔버스.
+  // 입력 — 표시 중이면 문장 즉시 완성, 완성 상태면 다음 문장
+  showOpening(lines, onDone, heroCanvas = null) {
     let i = 0;
+    let shown = 0;
+    let timer = null;
     const s = this.screen(`
-      <div class="mh-panel" style="min-width:480px">
-        <div class="mh-caption" id="op-line"></div>
+      <div class="mh-panel" style="min-width:560px">
+        <div class="op-row">
+          ${heroCanvas ? '<div class="op-hero"></div>' : ''}
+          <div class="mh-caption" id="op-line"></div>
+        </div>
         <div class="mh-hint" style="margin-top:16px">클릭 또는 [Space] — 다음</div>
       </div>
     `);
+    if (heroCanvas) s.querySelector('.op-hero').appendChild(heroCanvas);
     const lineEl = s.querySelector('#op-line');
-    const show = () => { lineEl.textContent = lines[i]; };
+    const render = () => {
+      lineEl.innerHTML = shown < lines[i].length
+        ? `${lines[i].slice(0, shown)}<span class="caret"></span>`
+        : lines[i];
+    };
+    const startLine = () => {
+      shown = 0;
+      clearInterval(timer);
+      timer = setInterval(() => {
+        shown++;
+        render();
+        if (shown >= lines[i].length) clearInterval(timer);
+      }, 100); // 초당 10글자 (§14.5)
+      render();
+    };
     const advance = () => {
+      if (shown < lines[i].length) {
+        clearInterval(timer);
+        shown = lines[i].length;
+        render();
+        return;
+      }
       i++;
-      if (i >= lines.length) { cleanup(); onDone(); } else show();
+      if (i >= lines.length) { cleanup(); onDone(); } else startLine();
     };
     const onKey = (e) => { if (e.code === 'Space' || e.code === 'Enter') advance(); };
-    const cleanup = () => window.removeEventListener('keydown', onKey);
+    const cleanup = () => { clearInterval(timer); window.removeEventListener('keydown', onKey); };
     s.addEventListener('click', advance);
     window.addEventListener('keydown', onKey);
-    show();
+    startLine();
   }
 
-  showStageIntro(stage, vehicleLabel, debt, onGo) {
+  // obstacle: { name, desc, canvas } | null — §14.4 신규 방해요소 3D 턴테이블 소개 (FR-30)
+  showStageIntro(stage, vehicleLabel, debt, onGo, obstacle = null) {
+    const obsHtml = obstacle
+      ? `<div class="intro-obstacle">
+          <div class="io-view"></div>
+          <div class="io-text">
+            <div class="io-tag">이번 계절의 신규 방해요소</div>
+            <div class="io-name">${obstacle.name}</div>
+            <div class="io-desc">${obstacle.desc}</div>
+          </div>
+        </div>`
+      : '';
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-sub">STAGE ${stage.id}</div>
         <div class="mh-caption" style="margin:10px 0">${stage.intro}</div>
         <div class="mh-sub">이동 수단: ${vehicleLabel} · 남은 빚 ₩${debt.toLocaleString()} · 제한 시간 10분</div>
+        ${obsHtml}
         <div style="margin-top:14px"><button class="mh-btn" id="btn-go">출발</button></div>
       </div>
     `);
+    if (obstacle) s.querySelector('.io-view').appendChild(obstacle.canvas);
     s.querySelector('#btn-go').addEventListener('click', onGo);
   }
 
@@ -328,6 +433,38 @@ export class UI {
     if (onRetryWinter) s.querySelector('#btn-retry-winter').addEventListener('click', onRetryWinter);
   }
 
+  // §14.6 튜토리얼 제안 (FR-32)
+  showTutorialAsk({ onYes, onNo }) {
+    const s = this.screen(`
+      <div class="mh-panel">
+        <div class="mh-caption">튜토리얼을 할까요?</div>
+        <div class="mh-sub" style="margin:8px 0">배달 수락부터 전달까지 4단계로 안내합니다 (진행 중 타이머 정지)</div>
+        <div style="margin-top:14px">
+          <button class="mh-btn" id="btn-tut-yes">예, 배워볼게요</button>
+          <button class="mh-btn" id="btn-tut-no">아니오, 바로 시작</button>
+        </div>
+      </div>
+    `);
+    s.querySelector('#btn-tut-yes').addEventListener('click', onYes);
+    s.querySelector('#btn-tut-no').addEventListener('click', onNo);
+  }
+
+  // step=null이면 튜토리얼 UI 전부 해제
+  tutorialGuide(step, text = '', targetSel = null) {
+    this.root.querySelectorAll('.tut-glow').forEach((el) => el.classList.remove('tut-glow'));
+    const dim = this.el('#tut-dim');
+    const panel = this.el('#tut-panel');
+    if (step == null) {
+      dim.style.display = 'none';
+      panel.style.display = 'none';
+      return;
+    }
+    dim.style.display = 'block';
+    panel.style.display = 'block';
+    panel.innerHTML = `<div class="t-step">튜토리얼 ${step + 1} / 4</div>${text}`;
+    if (targetSel) this.root.querySelector(targetSel)?.classList.add('tut-glow');
+  }
+
   showPause({ onResume, onRestart, onMenu }) {
     const s = this.screen(`
       <div class="mh-panel">
@@ -347,7 +484,7 @@ export class UI {
 
   setHudVisible(v) { this.hud.style.display = v ? 'block' : 'none'; if (!v) this.hideHint(); }
 
-  updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full }) {
+  updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full, playerPos, skill }) {
     this.el('#hud-money').innerHTML =
       `매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br>순수익 ₩${(revenue - fees).toLocaleString()}`;
     // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
@@ -364,6 +501,15 @@ export class UI {
     }
     this.el('#hud-stage').textContent = `${stageLabel} · ${vehicleLabel}`;
 
+    // 스킬 UI (§14.1): 대시 쿨타임 세로 게이지 + 드링크 사용 가능 여부
+    if (skill) {
+      const dash = this.el('#skill-dash');
+      dash.classList.toggle('active', skill.dashActive);
+      dash.classList.toggle('off', !skill.dashActive && skill.cdLeft > 0);
+      dash.querySelector('.s-cd').style.height = `${(skill.cdLeft / skill.cdTotal) * 100}%`;
+      this.el('#skill-drink').classList.toggle('off', !skill.drinkOk);
+    }
+
     // 스테이지 시계 (FR-23): 잔여 1분부터 빨강 + 펄스
     const clock = this.el('#hud-clock');
     const secs = Math.max(0, Math.ceil(stageTimeLeft));
@@ -371,19 +517,30 @@ export class UI {
       `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
     clock.classList.toggle('low', stageTimeLeft <= 60);
 
-    // 의뢰 슬롯 4개 (FR-19)
+    // 의뢰 슬롯 4개 (FR-19) + 플레이어→가게 거리·최근접 뱃지 (FR-29 §14.3)
     if (!this._slotEls) this._slotEls = [...this.root.querySelectorAll('.offer-slot')];
+    let nearestIdx = -1;
+    let nearestDist = Infinity;
+    const dists = offers.map((offer, i) => {
+      if (!offer || !playerPos) return null;
+      const d = Math.hypot(playerPos.x - offer.shop.pos.x, playerPos.z - offer.shop.pos.z);
+      if (d < nearestDist) { nearestDist = d; nearestIdx = i; } // 동률은 앞 슬롯 우선
+      return d;
+    });
     offers.forEach((offer, i) => {
       const el = this._slotEls[i];
       el.classList.toggle('empty', !offer);
       el.classList.toggle('blocked', !!offer && full);
+      el.classList.toggle('nearest', i === nearestIdx);
       if (offer) {
         el.querySelector('.o-route').textContent = `${offer.shop.name} → ${offer.door.name}`;
         el.querySelector('.o-pay').textContent = `₩${offer.pay.toLocaleString()}`;
+        el.querySelector('.o-dist').textContent = dists[i] != null ? `${Math.round(dists[i])}m` : '';
         el.querySelector('.o-ttl i').style.width = `${(offer.ttl / OFFER_TTL) * 100}%`;
       } else {
         el.querySelector('.o-route').textContent = '의뢰 대기';
         el.querySelector('.o-pay').textContent = '';
+        el.querySelector('.o-dist').textContent = '';
       }
     });
 

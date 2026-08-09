@@ -69,6 +69,9 @@ export const MANIFEST = [
   { name: 'shop-dosirak', prompt: FACADE(`Korean lunchbox takeout shop storefront, blue sign with Korean text "한솥도시락", menu board with prices`) },
   { name: 'shop-tteokbokki', prompt: FACADE(`Korean tteokbokki specialty shop storefront, red awning, sign with Korean text "매운떡볶이", cartoon rice cake mascot`) },
   { name: 'shop-burger', prompt: FACADE(`retro burger joint storefront, yellow sign with Korean text "왕버거", burger photo poster in window`) },
+  // §14.2 구멍가게 (빌라 사이 소형 가게)
+  { name: 'shop-super', prompt: FACADE(`tiny old Korean corner store (gumeonggage), faded blue sign with Korean text "동네슈퍼", stacked crates of drinks and snacks by door, single sliding glass door`) },
+  { name: 'shop-baekban', prompt: FACADE(`small humble Korean home-style meal diner storefront, worn white sign with Korean text "엄마손 백반", handwritten menu paper on window, sliding aluminum door`) },
   // 소품 (§7.10 장식 오브젝트용)
   { name: 'prop-pole', prompt: PROP('weathered gray concrete utility pole surface with small posted ads and stapled flyers, vertical texture strip') },
   { name: 'prop-trashbags', prompt: PROP('pile of white and green Korean garbage bags (jongnyangje bags) stacked against wall') },

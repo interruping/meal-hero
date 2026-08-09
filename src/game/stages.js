@@ -28,6 +28,26 @@ export const STAGES = [
   },
 ];
 
+// §14.4 방해요소 소개 모달 (FR-30) — §6 표 기반 외형·행동·대처 설명
+export const OBSTACLE_INFO = {
+  flyer: {
+    name: '전단지 알바생',
+    desc: '상가 골목에 서 있다가 다가가면 쫓아와 전단지를 던진다.<br>맞으면 잠깐 느려지고 밀려난다. 거리를 두고 지나가자.',
+  },
+  kid: {
+    name: '브레이크 없는 자전거 초딩',
+    desc: '도로를 빠른 속도로 직진 횡단한다. 경로는 읽히지만 빠르다.<br>부딪히면 넘어져 체력이 깎이고 배달 시간을 잃는다.',
+  },
+  pigeon: {
+    name: '비둘기',
+    desc: '길바닥에 무리 지어 있다가 다가가면 화면으로 날아오른다.<br>시야가 가려지고 조작이 잠깐 흔들린다.',
+  },
+  drunk: {
+    name: '취객',
+    desc: '골목을 지그재그로 비틀거리며 이쪽으로 다가온다.<br>부딪히면 체력이 깎이고 잠깐 조작이 반대로 꼬인다.',
+  },
+};
+
 export const TOTAL_DEBT = 20_000_000; // §12.4 전체 빚
 export const STAGE_TIME = 600; // §12.4 스테이지 제한 10분 (초)
 export const SEASON_DAYS = 120; // 정산 환산: 한 계절 분기 = 120일
@@ -35,5 +55,6 @@ export const DELIVERY_PAY = 5_000; // §12.3 배달 건당 보수
 export const BONUS_TIME_RATIO = 0.7; // 제한 시간 70% 이내 완료 시 보너스
 export const BONUS_MULT = 1.5; // 스피드 보너스 +50%
 export const LATE_FEE = 3_000; // §12.3 지각 수수료
+export const DRINK_COST = 1_500; // §14.1 에너지 드링크 — 대시 쿨타임 초기화
 
 export const MAX_HP = 5;

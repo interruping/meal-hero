@@ -407,10 +407,19 @@ export class ObstacleManager {
     }
   }
 
+  // 스테이지 신규 방해요소는 §14.4 소개 모달(FR-30)이 대체 — game이 introduced에
+  // 미리 넣어 배너를 막는다. 심사 모드 직행 시 이전 스테이지 요소만 배너로 안내
   introBanner(type) {
     if (this.introduced.has(type)) return;
     this.introduced.add(type);
     this.game.ui.banner(INTRO_LINES[type], 3000);
+  }
+
+  proto(type) {
+    return {
+      flyer: this.protoFlyer, kid: this.protoKid,
+      pigeon: this.protoPigeon, drunk: this.protoDrunk,
+    }[type];
   }
 
   setup(stage) {
