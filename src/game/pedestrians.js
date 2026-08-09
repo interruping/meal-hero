@@ -51,15 +51,27 @@ export class Pedestrians {
     action.timeScale = 0.85 + Math.random() * 0.35;
     const w = {
       model, mixer,
-      axis: Math.random() < 0.5 ? 'x' : 'z',           // 이동 축
-      line: STREETS[Math.floor(Math.random() * STREETS.length)], // 걷는 골목
-      lateral: (Math.random() < 0.5 ? -1 : 1) * (ROAD_HALF - 0.7),
-      t: -LIMIT + Math.random() * LIMIT * 2,           // 골목 위 위치
+      axis: 'z', line: 0, lateral: ROAD_HALF - 0.7, t: 0,
       dir: Math.random() < 0.5 ? -1 : 1,
       speed: 1.15 + Math.random() * 0.5,
       yaw: 0,
       nextCross: null,
     };
+    // 산발 스폰: 서로 최소 15m 떨어진 자리가 나올 때까지 재시도
+    for (let attempt = 0; attempt < 12; attempt++) {
+      w.axis = Math.random() < 0.5 ? 'x' : 'z';
+      w.line = STREETS[Math.floor(Math.random() * STREETS.length)];
+      w.lateral = (Math.random() < 0.5 ? -1 : 1) * (ROAD_HALF - 0.7);
+      w.t = -LIMIT + Math.random() * LIMIT * 2;
+      const [x, z] = this.pos(w);
+      if (this.blocked(x, z)) continue;
+      const near = this.walkers.some((o) => {
+        const dx = o.model.position.x - x;
+        const dz = o.model.position.z - z;
+        return dx * dx + dz * dz < 15 * 15;
+      });
+      if (!near) break;
+    }
     this.place(w);
     w.model.rotation.y = w.yaw = this.targetYaw(w);
     this.group.add(model);
