@@ -32,6 +32,14 @@ const CSS = `
 .mh-controls b { color: #b5372f; } /* §15.3 키 이름 악센트 */
 .mh-caption { font-size: 22px; line-height: 1.8; }
 .mh-hint { font-size: 14px; color: #7a7a76; }
+/* §16.4 (FR-43) 분기 정산 영수증: 항목별 1행, 항목명 좌 / 금액 우, 결론은 마지막 줄 강조 */
+.receipt { width: 330px; margin: 14px auto 4px; text-align: left; font-size: 15px;
+  background: #f7f5ee; border: 2px solid #8b8779; padding: 12px 16px; }
+.receipt .r-row { display: flex; justify-content: space-between; gap: 14px; padding: 3px 0; }
+.receipt .r-row span:last-child { text-align: right; white-space: nowrap; }
+.receipt .r-sep { border-top: 2px dashed #8b8779; margin: 7px 0; }
+.receipt .r-total { font-weight: bold; font-size: 18px; }
+.receipt .r-total .neg { color: #b5372f; }
 /* §14.6 튜토리얼 (FR-32): 배경 디밍 + 대상 UI 테두리 강조 + 안내 패널 */
 #tut-dim { position: absolute; inset: 0; background: rgba(38,38,42,0.35); display: none;
   z-index: 5; pointer-events: none; }
@@ -413,14 +421,26 @@ export class UI {
     const bridge = isLast
       ? ''
       : `<div class="mh-caption" style="margin:8px 0; font-size:16px">계절이 바뀐다… 새 이동 수단 <b>${nextVehicle}</b> 획득!</div>`;
+    // §16.4 (FR-43) 영수증 형식 — 항목별 1행, 결론(남은 빚)은 마지막 줄
+    const won = (v) => `₩${v.toLocaleString()}`;
+    const repaid = debtBefore - debtAfter;
+    const row = (k, v) => `<div class="r-row"><span>${k}</span><span>${v}</span></div>`;
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-title" style="font-size:28px">${stage.intro.split('—')[0].trim()} 분기 정산</div>
-        <div class="mh-caption" style="margin:12px 0; font-size:16px; line-height:2">
-          배달 ${deliveries}건 · 매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br>
-          10분 순수익 ₩${net.toLocaleString()} × ${days}일<br>
-          = 분기 매출 <b>₩${settlement.toLocaleString()}</b><br>
-          빚 ₩${debtBefore.toLocaleString()} → <b style="color:#b5372f">₩${debtAfter.toLocaleString()}</b>
+        <div class="receipt">
+          ${row('배달 완료', `${deliveries}건`)}
+          ${row('매출', won(revenue))}
+          ${row('플랫폼 수수료', `-${won(fees)}`)}
+          <div class="r-sep"></div>
+          ${row('10분 순수익', won(net))}
+          ${row('분기 환산', `× ${days}일`)}
+          ${row('분기 매출', `<b>${won(settlement)}</b>`)}
+          <div class="r-sep"></div>
+          ${row('빚 상환', `-${won(repaid)}`)}
+          <div class="r-row r-total"><span>남은 빚</span><span class="${debtAfter > 0 ? 'neg' : ''}">${
+            debtAfter > 0 ? won(debtAfter) : `${won(0)} — 완납!`
+          }</span></div>
         </div>
         ${bridge}
         <button class="mh-btn primary" id="btn-next">${isLast ? '엔딩 보기' : '다음 계절로'}</button>
