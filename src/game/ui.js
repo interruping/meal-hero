@@ -31,6 +31,12 @@ const CSS = `
 #hud-money { top: 12px; left: 12px; line-height: 1.55; }
 #hud-hp { top: 12px; right: 12px; font-size: 22px; letter-spacing: 2px; color: #b5372f; }
 #hud-stage { bottom: 12px; left: 12px; font-size: 15px; }
+/* FR-23 스테이지 10분 시계 — 체력 하단, 잔여 1분부터 빨강 + 10% 펄스 */
+#hud-clock { top: 58px; right: 12px; font-size: 18px; letter-spacing: 1px; }
+#hud-clock .c-icon { margin-right: 5px; }
+#hud-clock.low { color: #b5372f; border-color: #b5372f;
+  animation: clock-pulse 0.7s ease-in-out infinite; }
+@keyframes clock-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
 /* FR-19 의뢰 슬롯 4개 (상단 중앙) */
 #hud-offers { position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
   display: flex; gap: 6px; }
@@ -112,6 +118,7 @@ export class UI {
         </div>
         <div id="hud-active"></div>
         <div id="hud-hp" class="hud-panel"></div>
+        <div id="hud-clock" class="hud-panel"><span class="c-icon">🕐</span><span id="hud-clock-text">10:00</span></div>
         <div id="hud-stage" class="hud-panel"></div>
         <div id="hud-hint" class="hud-panel"></div>
         <div id="hud-arrow">▲</div>
@@ -298,6 +305,13 @@ export class UI {
       this.el('#hud-hp').innerHTML = hearts;
     }
     this.el('#hud-stage').textContent = `${stageLabel} · ${vehicleLabel}`;
+
+    // 스테이지 시계 (FR-23): 잔여 1분부터 빨강 + 펄스
+    const clock = this.el('#hud-clock');
+    const secs = Math.max(0, Math.ceil(stageTimeLeft));
+    this.el('#hud-clock-text').textContent =
+      `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+    clock.classList.toggle('low', stageTimeLeft <= 60);
 
     // 의뢰 슬롯 4개 (FR-19)
     if (!this._slotEls) this._slotEls = [...this.root.querySelectorAll('.offer-slot')];
