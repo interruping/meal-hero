@@ -140,7 +140,7 @@ export class Game {
     const PROP_HEIGHTS = {
       vending: 1.9, hydrant: 0.75, bench: 0.85, pyeongsang: 0.5, trashpile: 0.85,
       planter: 0.5, mailbox: 0.9, streetlamp: 4.6, pole: 7.5, boxes: 1.1,
-      parasol: 2.4, laundry: 1.4, cat: 0.45,
+      parasol: 2.4, laundry: 1.4, cat: 0.45, railing: 1.05,
     };
     const propEntries = await Promise.all(
       Object.entries(PROP_HEIGHTS).map(async ([k, h]) => [k, await loadModel(`prop3d-${k}`, h)]),

@@ -11,7 +11,7 @@ export const ROAD_HALF = 3;
 export const SHOP_Z = 76; // 상가골목 중심선
 
 // 계단 샛길: 블록 관통 통로. 볼라드로 탈것 차단(점프로 통과)
-const STAIR_PASSAGES = [
+export const STAIR_PASSAGES = [
   { x: 16.5, z0: -66, z1: -33 },
   { x: -49.5, z0: 0, z1: 33 },
 ];
@@ -207,7 +207,6 @@ export function buildCity(scene) {
   // 계단 샛길: 스텝(석재 텍스처) + 볼라드
   const stepMat = sharedMat('prop-scaffold-stairs');
   const bollardMat = sharedMat('prop-bollard');
-  const railMat = sharedMat('prop-railing', { repeatX: 3, repeatY: 0.5 });
   for (const s of STAIR_PASSAGES) {
     const steps = 26;
     for (let i = 0; i < steps; i++) {
@@ -220,20 +219,7 @@ export function buildCity(scene) {
       step.position.set(s.x, y + 0.1, z);
       root.add(step);
     }
-    // 난간 (계단 양측)
-    for (const off of [-1.35, 1.35]) {
-      const segCount = 6;
-      for (let i = 0; i < segCount; i++) {
-        const zs = s.z0 + ((i + 0.5) / segCount) * (s.z1 - s.z0);
-        const y = terrainHeight(s.x + off, zs);
-        const rail = new THREE.Mesh(
-          new THREE.BoxGeometry(0.08, 0.9, Math.abs(s.z1 - s.z0) / segCount),
-          railMat,
-        );
-        rail.position.set(s.x + off, y + 0.85, zs);
-        root.add(rail);
-      }
-    }
+    // 난간은 Meshy 3D 모델(prop3d-railing) — props.js에서 배치
     for (const zEnd of [s.z0 + 1, s.z1 - 1]) {
       for (const off of [-0.9, 0, 0.9]) {
         const b = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.55, 8), bollardMat);
