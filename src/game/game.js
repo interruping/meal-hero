@@ -81,8 +81,8 @@ export class Game {
         this.audio.play('order');
       },
       onFull: () => this.ui.toast('가방이 가득! 동시 배달은 3건까지', 1400),
-      // FR-24 수령 코드 매칭이 여기 끼어든다 (현재는 즉시 확정)
-      onPickupRequest: (d) => this.delivery.confirmPickup(d),
+      // FR-24 수령 코드 매칭 (§12.5): E 수령 시 영수증 4장 중 내 코드 고르기
+      onPickupRequest: (d) => this.startCodeMatch(d),
       onPickedUp: (d) => {
         this.ui.banner(`픽업 완료! <b>${d.door.name}</b>으로`, 1400);
         this.audio.play('pickup');
@@ -246,6 +246,8 @@ export class Game {
     this.stageIdx = idx;
     this.stageCfg = STAGES[idx];
     this.stage_ = { revenue: 0, fees: 0, deliveries: 0, hp: MAX_HP, timeLeft: STAGE_TIME };
+    this.codeMatch = null;
+    this.ui.hideCodeMatch();
     this.applySeason(this.stageCfg.season);
     this.player.setVehicle(this.stageCfg.vehicle);
     this.player.slippery = !!this.stageCfg.slippery;
@@ -485,6 +487,53 @@ export class Game {
     );
   }
 
+  // ── 수령 코드 매칭 (FR-24 §12.5) ───────────
+
+  startCodeMatch(d) {
+    if (this.codeMatch) return;
+    const gen = () => {
+      const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+      let s = '';
+      for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+      return s;
+    };
+    const codes = new Set([gen()]);
+    while (codes.size < 4) codes.add(gen());
+    const pool = [...codes];
+    const myCode = pool[0];
+    const list = [...pool].sort(() => Math.random() - 0.5);
+    this.codeMatch = { d, correctIdx: list.indexOf(myCode), timeLeft: 3 };
+    this.ui.showCodeMatch(list, myCode);
+    this.audio.play('order');
+  }
+
+  updateCodeMatch(dt) {
+    const cm = this.codeMatch;
+    cm.timeLeft -= dt;
+    for (let i = 0; i < 4; i++) {
+      if (this.input.justPressed(`Digit${i + 1}`) || this.input.justPressed(`Numpad${i + 1}`)) {
+        this.resolveCodeMatch(i === cm.correctIdx);
+        return;
+      }
+    }
+    if (cm.timeLeft <= 0) {
+      this.resolveCodeMatch(false); // 미선택 = 오답과 동일 (§12.5)
+      return;
+    }
+    this.ui.updateCodeMatch(cm.timeLeft / 3, Math.ceil(cm.timeLeft));
+  }
+
+  resolveCodeMatch(correct) {
+    const cm = this.codeMatch;
+    this.codeMatch = null;
+    this.ui.hideCodeMatch();
+    this.delivery.confirmPickup(cm.d, correct ? 0 : 5);
+    if (!correct) {
+      this.ui.toast('영수증 불일치! 배달 시간 -5초', 1800);
+      this.audio.play('miss');
+    }
+  }
+
   // ── 인게임 이벤트 ──────────────────────────
 
   damage(n, cause) {
@@ -530,7 +579,9 @@ export class Game {
       } else {
         this._hadLock = locked;
         this.player.update(dt, this.input, this.cam.yaw);
-        this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle, { acceptKeys: true });
+        // 코드 매칭 중엔 1~4·E를 미니게임이 가져간다 (게임 자체는 계속 진행 — §12.5)
+        this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle, { acceptKeys: !this.codeMatch });
+        if (this.codeMatch) this.updateCodeMatch(dt);
         this.obstacles.update(dt);
         // §12.4 스테이지 제한 10분 — 소진 시 정산으로
         this.stage_.timeLeft -= dt;

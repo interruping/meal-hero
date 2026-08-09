@@ -74,6 +74,29 @@ const CSS = `
 /* 부분 하트 (과속 충돌 0.25 단위 차감) */
 .hp-part { background: linear-gradient(90deg, #b5372f var(--f), rgba(181,55,47,0.25) var(--f));
   -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* FR-24 수령 코드 매칭: 영수증 4장 + 전폭 3초 바 + 우측 하단 접수증 */
+#codematch { position: absolute; inset: 0; display: none; z-index: 8;
+  background: rgba(58,58,56,0.62); }
+#codematch .cm-msg { position: absolute; top: 17%; left: 0; right: 0; text-align: center;
+  font-size: 21px; color: #efeeea;
+  text-shadow: 2px 2px 0 #3a3a38, -1px -1px 0 #3a3a38, 1px -1px 0 #3a3a38, -1px 1px 0 #3a3a38; }
+#codematch .cm-bar { position: absolute; top: 23%; left: 0; right: 0; height: 14px;
+  background: rgba(58,58,56,0.8); border-top: 2px solid #efeeea; border-bottom: 2px solid #efeeea; }
+#codematch .cm-bar i { display: block; height: 100%; background: #5f7a55; width: 100%; }
+#codematch .cm-receipts { position: absolute; top: 30%; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 14px; }
+.cm-receipt { width: 150px; background: #efeeea; border: 2px solid #3a3a38; padding: 10px 8px 12px;
+  text-align: center; box-shadow: 4px 4px 0 rgba(58,58,56,0.5); font-size: 13px; color: #6a6a66;
+  background-image: linear-gradient(rgba(58,58,56,0.06) 1px, transparent 1px);
+  background-size: 100% 7px; }
+.cm-receipt .key { display: inline-block; background: #3a3a38; color: #efeeea; font-size: 15px;
+  padding: 1px 8px; margin-bottom: 6px; }
+.cm-receipt .cm-code { font-size: 19px; letter-spacing: 2px; color: #3a3a38; margin-top: 6px;
+  border-top: 1px dashed #9a9a96; padding-top: 7px; }
+#codematch .cm-mine { position: absolute; right: 26px; bottom: 26px; width: 190px;
+  background: #efeeea; border: 3px solid #b5372f; padding: 12px 10px; text-align: center;
+  transform: rotate(-3deg); box-shadow: 5px 5px 0 rgba(58,58,56,0.55); font-size: 13px; }
+#codematch .cm-mine .cm-code { font-size: 22px; letter-spacing: 3px; color: #b5372f; margin: 6px 0; }
 /* 비둘기 시야 방해: 화면(앞유리)에 부딪힌 비둘기 + 잔류 깃털 */
 .pigeon-splat { position: absolute; left: 50%; top: 50%; width: min(46vmin, 380px);
   image-rendering: pixelated; pointer-events: none; z-index: 5;
@@ -124,6 +147,16 @@ export class UI {
         <div id="hud-arrow">▲</div>
         <div id="hud-banner"></div>
         <div id="hud-toast"></div>
+        <div id="codematch">
+          <div class="cm-msg"></div>
+          <div class="cm-bar"><i></i></div>
+          <div class="cm-receipts"></div>
+          <div class="cm-mine">
+            <div>내 배달 접수증</div>
+            <div class="cm-code"></div>
+            <div style="color:#6a6a66">일치하는 영수증을 [1~4]로!</div>
+          </div>
+        </div>
       </div>
       <div id="screen-holder"></div>
     `;
@@ -369,6 +402,33 @@ export class UI {
     b.style.display = 'block';
     clearTimeout(this.bannerTimeout);
     this.bannerTimeout = setTimeout(() => { b.style.display = 'none'; }, ms);
+  }
+
+  // FR-24 수령 코드 매칭 오버레이
+  showCodeMatch(codes, myCode) {
+    const cm = this.el('#codematch');
+    cm.querySelector('.cm-receipts').innerHTML = codes.map((c, i) => `
+      <div class="cm-receipt">
+        <span class="key">${i + 1}</span>
+        <div>주문 영수증</div>
+        <div class="cm-code">${c}</div>
+      </div>`).join('');
+    cm.querySelector('.cm-mine .cm-code').textContent = myCode;
+    cm.style.display = 'block';
+    this.updateCodeMatch(1, 3);
+  }
+
+  updateCodeMatch(ratio, secs) {
+    const cm = this.el('#codematch');
+    cm.querySelector('.cm-msg').innerHTML = `어떤 주문인지 골라주세요. <b>${secs}</b>초 남았습니다.`;
+    const bar = cm.querySelector('.cm-bar i');
+    bar.style.width = `${Math.max(0, ratio) * 100}%`;
+    // 녹색 → 노란색 → 빨간색 (§12.5)
+    bar.style.background = ratio > 0.55 ? '#5f7a55' : ratio > 0.28 ? '#c9a13b' : '#b5372f';
+  }
+
+  hideCodeMatch() {
+    this.el('#codematch').style.display = 'none';
   }
 
   // 비둘기 충돌: 앞유리에 부딪힌 스플랫을 화면 중앙에, 깃털은 중앙 피해 산개 후 2초 잔류
