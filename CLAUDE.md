@@ -100,6 +100,36 @@ curl -s https://openrouter.ai/api/v1/images/generations \
   }'
 ```
 
+## 오디오 리소스 생성 (OpenRouter / openai/gpt-audio)
+
+- API 키: 이미지와 동일하게 `.env`의 `OPENROUTER_API_KEY` 사용 (**$20 총 한도를 이미지와 공유** — 러닝 토탈에 합산)
+- 키 값 출력 금지·`.env` 커밋 금지 규칙 동일 적용
+- **음성 기반 산출물 전용**: 나레이션(오프닝·엔딩 컷씬), 캐릭터 대사, 보이스성 효과음(취객 웅얼거림 등). **음악(BGM)·정교한 비음성 SFX는 이 모델로 못 만든다** — 기존 WebAudio 프로시저럴(`src/core/audio.js`) 유지
+- 모델: 기본 `openai/gpt-audio-mini` (오디오 출력 $2.4/M 토큰). 품질 부족할 때만 `openai/gpt-audio` ($64/M 토큰 — 약 27배 비쌈)
+  - 오디오 출력은 약 10토큰/초. 10초 대사 기준 mini ≈ $0.0002, gpt-audio ≈ $0.0064 — 저렴하지만 `AI_USAGE.md` 러닝 토탈에 기록은 유지
+- 엔드포인트: 전용 TTS 엔드포인트가 아니라 **chat completions + `modalities` 파라미터** 방식. 응답의 `choices[0].message.audio.data`에 base64 오디오가 담긴다
+- 보이스 옵션: `alloy`, `ash`, `ballad`, `coral`, `echo`, `sage`, `shimmer`, `verse`. 톤·감정·속도 연출은 system 메시지로 지시
+- 결과물은 `assets/audio/`에 저장 (Vite publicDir이라 런타임 경로는 `ASSET_BASE + 'audio/...'`), 파일명은 용도 기반 (`voice-opening-narration.mp3` 등). 포맷은 웹 용량 고려해 `mp3` 권장
+- 생성 전 필요한 대사 목록을 정리해 배치로 계획 — 같은 대사 반복 재생성 낭비 금지. 한국어 대사 생성 가능
+- 생성 내역(대사 원문·보이스·모델·비용)은 `AI_USAGE.md`에 즉시 기록
+
+### 호출 예시
+
+```bash
+curl -s https://openrouter.ai/api/v1/chat/completions \
+  -H "Authorization: Bearer $OPENROUTER_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "openai/gpt-audio-mini",
+    "modalities": ["text", "audio"],
+    "audio": { "voice": "ash", "format": "mp3" },
+    "messages": [
+      { "role": "system", "content": "다음 대사를 <톤·감정·속도 지시>로 한국어로 읽어라. 대사 외 다른 말 금지." },
+      { "role": "user", "content": "<대사 원문>" }
+    ]
+  }' | python3 -c "import json,sys,base64; r=json.load(sys.stdin); open('assets/audio/<용도>.mp3','wb').write(base64.b64decode(r['choices'][0]['message']['audio']['data']))"
+```
+
 ## 3D 리소스 생성 (Meshy.ai)
 
 - API 키: `.env`의 `MESHY_AI_API_KEY` (잔액 **1,100 크레딧** — 초과 불가, 아껴 쓸 것)
