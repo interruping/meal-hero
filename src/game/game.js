@@ -10,9 +10,10 @@ import { DeliveryManager, MAX_ACTIVE, DELIVERY_COLORS_CSS } from './delivery.js'
 import { ObstacleManager } from './obstacles.js';
 import {
   STAGES, MAX_HP, TOTAL_DEBT, STAGE_TIME, SEASON_DAYS,
-  BONUS_TIME_RATIO, BONUS_MULT, LATE_FEE, DRINK_COST,
+  BONUS_TIME_RATIO, BONUS_MULT, LATE_FEE, DRINK_COST, OBSTACLE_INFO,
 } from './stages.js';
 import { DASH_COOLDOWN } from './player.js';
+import { ModelViewer } from './modelview.js';
 import { VEHICLES } from './vehicles.js';
 import { loadModel, loadAnimated, instantiateAnimated, addSkinnedOutline } from '../core/loader.js';
 import { buildProps, placeParkedVehicles } from './props.js';
@@ -261,13 +262,27 @@ export class Game {
     this.cam.initialized = false;
     this.state = 'intro';
     this.ui.setHudVisible(false);
+    // §14.4 신규 방해요소 3D 소개 (FR-30): 스테이지 첫 진입에만, 재시작 시 생략
+    this._obsIntroShown ??= new Set();
+    let obstacleIntro = null;
+    const newType = this.stageCfg.obstacles[this.stageCfg.obstacles.length - 1];
+    if (!this._obsIntroShown.has(idx) && this.obstacles.proto(newType)) {
+      this._obsIntroShown.add(idx);
+      this.obstacles.introduced.add(newType); // 인게임 자막 1줄 배너는 모달이 대체
+      this.modelView ??= new ModelViewer(200, 200);
+      obstacleIntro = {
+        ...OBSTACLE_INFO[newType],
+        canvas: this.modelView.show(this.obstacles.proto(newType).clone(true)),
+      };
+    }
     this.ui.showStageIntro(this.stageCfg, VEHICLES[this.stageCfg.vehicle].label, this.career.debt, () => {
+      this.modelView?.stop();
       this.ui.clearScreen();
       this.state = 'playing';
       this.ui.setHudVisible(true);
       this.input.requestPointerLock();
       this.audio.startBGM(this.stageCfg.season);
-    });
+    }, obstacleIntro);
   }
 
   // 배달가방을 히어로 가슴 본에 부착 — 정적 부착은 두리번·달리기 애니메이션과

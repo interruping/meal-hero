@@ -24,6 +24,15 @@ const CSS = `
 .mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block; }
 .mh-caption { font-size: 22px; line-height: 1.8; }
 .mh-hint { font-size: 14px; color: #7a7a76; }
+/* §14.4 방해요소 소개 (스테이지 인트로 내 3D 턴테이블) */
+.intro-obstacle { display: flex; gap: 14px; margin: 14px auto 4px; border: 2px solid #3a3a38;
+  background: #e5e3dc; padding: 10px 12px; align-items: center; text-align: left; max-width: 470px; }
+.intro-obstacle .io-view { flex: none; width: 150px; height: 150px; background: #d8d5cb;
+  border: 2px solid #3a3a38; overflow: hidden; }
+.intro-obstacle .io-view canvas { width: 100%; height: 100%; display: block; }
+.intro-obstacle .io-tag { font-size: 12px; color: #b5372f; }
+.intro-obstacle .io-name { font-size: 18px; margin: 3px 0 5px; }
+.intro-obstacle .io-desc { font-size: 13px; color: #4a4a46; line-height: 1.65; }
 /* HUD */
 #hud { position: absolute; inset: 0; display: none; }
 .hud-panel { position: absolute; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
@@ -284,15 +293,28 @@ export class UI {
     show();
   }
 
-  showStageIntro(stage, vehicleLabel, debt, onGo) {
+  // obstacle: { name, desc, canvas } | null — §14.4 신규 방해요소 3D 턴테이블 소개 (FR-30)
+  showStageIntro(stage, vehicleLabel, debt, onGo, obstacle = null) {
+    const obsHtml = obstacle
+      ? `<div class="intro-obstacle">
+          <div class="io-view"></div>
+          <div class="io-text">
+            <div class="io-tag">이번 계절의 신규 방해요소</div>
+            <div class="io-name">${obstacle.name}</div>
+            <div class="io-desc">${obstacle.desc}</div>
+          </div>
+        </div>`
+      : '';
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-sub">STAGE ${stage.id}</div>
         <div class="mh-caption" style="margin:10px 0">${stage.intro}</div>
         <div class="mh-sub">이동 수단: ${vehicleLabel} · 남은 빚 ₩${debt.toLocaleString()} · 제한 시간 10분</div>
+        ${obsHtml}
         <div style="margin-top:14px"><button class="mh-btn" id="btn-go">출발</button></div>
       </div>
     `);
+    if (obstacle) s.querySelector('.io-view').appendChild(obstacle.canvas);
     s.querySelector('#btn-go').addEventListener('click', onGo);
   }
 
