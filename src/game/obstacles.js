@@ -336,19 +336,20 @@ export class ObstacleManager {
     this.active = kinds;
 
     if (kinds.includes('flyer')) {
-      // 상가 골목 위주 + 골목 모퉁이
+      // 맵 전역 골목에 분산 — 서로 최소 18m 간격 (상가 앞 몰림 방지)
       const spots = [];
-      for (let i = 0; i < 3 + density; i++) {
-        const x = -60 + Math.random() * 120;
-        const z = 66 + Math.random() * 6; // 상가 앞
-        spots.push(new THREE.Vector3(x, this.world.groundHeight(x, z), z));
-      }
-      for (let i = 0; i < density; i++) {
-        const s = STREETS[Math.floor(Math.random() * STREETS.length)];
-        const t = -60 + Math.random() * 120;
-        const x = Math.random() < 0.5 ? s + 2 : t;
-        const z = x === t ? s + 2 : t;
-        spots.push(new THREE.Vector3(x, this.world.groundHeight(x, z), z));
+      const total = 5 + density * 2;
+      for (let i = 0; i < total; i++) {
+        for (let attempt = 0; attempt < 12; attempt++) {
+          const s = STREETS[Math.floor(Math.random() * STREETS.length)];
+          const t = -72 + Math.random() * 144;
+          const vertical = Math.random() < 0.5;
+          const x = vertical ? s + (Math.random() < 0.5 ? -2 : 2) : t;
+          const z = vertical ? t : s + (Math.random() < 0.5 ? -2 : 2);
+          if (spots.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < 18 * 18)) continue;
+          spots.push(new THREE.Vector3(x, this.world.groundHeight(x, z), z));
+          break;
+        }
       }
       if (!this.paperPool) this.paperPool = new PaperPool(this.scene, this.game);
       for (const p of spots) {
