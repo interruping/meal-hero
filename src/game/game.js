@@ -243,7 +243,14 @@ export class Game {
   startOpening() {
     this.state = 'opening';
     this.resetCareer();
-    this.ui.showOpening(OPENING_LINES, () => this.startStage(0));
+    // §14.5 대사 UI에 주인공 모델 턴테이블 (FR-31)
+    this.modelView ??= new ModelViewer(200, 200);
+    const heroCanvas = this.modelView.show(this.models.hero.clone(true), { spin: 0.7 });
+    this.ui.showOpening(OPENING_LINES, () => {
+      this.modelView.stop();
+      this._offerTutorial = true; // §14.6 처음 시작 플로우에서만 튜토리얼 제안 (FR-32)
+      this.startStage(0);
+    }, heroCanvas);
   }
 
   startStage(idx) {

@@ -24,6 +24,15 @@ const CSS = `
 .mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block; }
 .mh-caption { font-size: 22px; line-height: 1.8; }
 .mh-hint { font-size: 14px; color: #7a7a76; }
+/* §14.5 오프닝: 주인공 모델 + 타자기 대사 */
+.op-row { display: flex; gap: 16px; align-items: center; text-align: left; }
+.op-hero { flex: none; width: 150px; height: 150px; background: #d8d5cb;
+  border: 2px solid #3a3a38; overflow: hidden; }
+.op-hero canvas { width: 100%; height: 100%; display: block; }
+#op-line { flex: 1; min-height: 3.6em; }
+#op-line .caret { display: inline-block; width: 0.55em; background: #3a3a38;
+  height: 1em; vertical-align: -0.1em; animation: caret-blink 0.8s steps(1) infinite; }
+@keyframes caret-blink { 50% { opacity: 0; } }
 /* §14.4 방해요소 소개 (스테이지 인트로 내 3D 턴테이블) */
 .intro-obstacle { display: flex; gap: 14px; margin: 14px auto 4px; border: 2px solid #3a3a38;
   background: #e5e3dc; padding: 10px 12px; align-items: center; text-align: left; max-width: 470px; }
@@ -272,25 +281,53 @@ export class UI {
       b.addEventListener('click', () => onStage(Number(b.dataset.stage))));
   }
 
-  showOpening(lines, onDone) {
+  // FR-31 (§14.5): 초당 10자 타자기 + 주인공 모델 캔버스.
+  // 입력 — 표시 중이면 문장 즉시 완성, 완성 상태면 다음 문장
+  showOpening(lines, onDone, heroCanvas = null) {
     let i = 0;
+    let shown = 0;
+    let timer = null;
     const s = this.screen(`
-      <div class="mh-panel" style="min-width:480px">
-        <div class="mh-caption" id="op-line"></div>
+      <div class="mh-panel" style="min-width:560px">
+        <div class="op-row">
+          ${heroCanvas ? '<div class="op-hero"></div>' : ''}
+          <div class="mh-caption" id="op-line"></div>
+        </div>
         <div class="mh-hint" style="margin-top:16px">클릭 또는 [Space] — 다음</div>
       </div>
     `);
+    if (heroCanvas) s.querySelector('.op-hero').appendChild(heroCanvas);
     const lineEl = s.querySelector('#op-line');
-    const show = () => { lineEl.textContent = lines[i]; };
+    const render = () => {
+      lineEl.innerHTML = shown < lines[i].length
+        ? `${lines[i].slice(0, shown)}<span class="caret"></span>`
+        : lines[i];
+    };
+    const startLine = () => {
+      shown = 0;
+      clearInterval(timer);
+      timer = setInterval(() => {
+        shown++;
+        render();
+        if (shown >= lines[i].length) clearInterval(timer);
+      }, 100); // 초당 10글자 (§14.5)
+      render();
+    };
     const advance = () => {
+      if (shown < lines[i].length) {
+        clearInterval(timer);
+        shown = lines[i].length;
+        render();
+        return;
+      }
       i++;
-      if (i >= lines.length) { cleanup(); onDone(); } else show();
+      if (i >= lines.length) { cleanup(); onDone(); } else startLine();
     };
     const onKey = (e) => { if (e.code === 'Space' || e.code === 'Enter') advance(); };
-    const cleanup = () => window.removeEventListener('keydown', onKey);
+    const cleanup = () => { clearInterval(timer); window.removeEventListener('keydown', onKey); };
     s.addEventListener('click', advance);
     window.addEventListener('keydown', onKey);
-    show();
+    startLine();
   }
 
   // obstacle: { name, desc, canvas } | null — §14.4 신규 방해요소 3D 턴테이블 소개 (FR-30)
