@@ -105,8 +105,6 @@ export class Game {
       loadModel('prop-parked-sedan', 1.4),
       loadModel('prop-parked-truck', 1.9),
     ]);
-    placeParkedVehicles(this.world, this.scene, { sedan: parkedSedan, truck: parkedTruck });
-
     // 소품 3D 모델 로드 → 배치 (§7.10 장식 오브젝트)
     const PROP_HEIGHTS = {
       vending: 1.9, hydrant: 0.75, bench: 0.85, pyeongsang: 0.5, trashpile: 0.85,
@@ -117,6 +115,8 @@ export class Game {
       Object.entries(PROP_HEIGHTS).map(async ([k, h]) => [k, await loadModel(`prop3d-${k}`, h)]),
     );
     this.props = buildProps(this.world, this.scene, Object.fromEntries(propEntries));
+    // 차량은 소품 뒤에 배치 — 소품 풋프린트(world.propBoxes)와 겹침 회피
+    placeParkedVehicles(this.world, this.scene, { sedan: parkedSedan, truck: parkedTruck });
     this.applySeason('spring');
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;
