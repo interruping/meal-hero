@@ -3,7 +3,8 @@
     "rigId": "019fe414-b908-7c08-8fe4-f8a360d53653",
     "anims": {
       "-run": "019fe415-72ac-7655-966b-164ee6870437",
-      "-idle": "019fe415-a021-7ae2-aea3-caf08034be68"
+      "-idle": "019fe415-a021-7ae2-aea3-caf08034be68",
+      "-sit": "019fe586-f64f-7af6-9275-517a9e8b0a08"
     }
   },
   "obstacle-drunk": {

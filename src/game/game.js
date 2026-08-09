@@ -137,7 +137,14 @@ export class Game {
       const idle = inst.mixer.clipAction(idleAsset.clips[0]);
       run.play(); idle.play();
       run.setEffectiveWeight(0); idle.setEffectiveWeight(1);
-      this.heroAnim = { model: inst.model, mixer: inst.mixer, run, idle };
+      this.heroAnim = { model: inst.model, mixer: inst.mixer, run, idle, sit: null };
+      // 앉기 (자전거·스쿠터 탑승) — 없으면 서있기 유지
+      try {
+        const sitAsset = await loadAnimated('character-hero-sit', 1.6);
+        const sit = inst.mixer.clipAction(sitAsset.clips[0]);
+        sit.play(); sit.setEffectiveWeight(0);
+        this.heroAnim.sit = sit;
+      } catch { /* 폴백: idle */ }
       this.heroVisual = inst.model;
     } catch {
       this.heroAnim = null;
@@ -282,8 +289,14 @@ export class Game {
       // 차량 GLB 3종 모두 앞머리(핸들바)가 -x — 진행 방향(+z)으로 90° 정렬
       vehicle.rotation.y = Math.PI / 2;
       holder.add(vehicle);
-      hero.position.set(0, vehicleKey === 'kickboard' ? 0.14 : 0.4, -0.05);
-      hero.rotation.x = vehicleKey === 'kickboard' ? 0 : 0.12;
+      // 탑승 자세: 킥보드는 발판에 서고, 자전거·스쿠터는 안장 착좌 (앉기 클립과 세트 튜닝)
+      const pose = {
+        kickboard: { y: 0.14, z: -0.05, rx: 0 },
+        bicycle: { y: 0.24, z: 0, rx: -0.06 },
+        scooter: { y: 0.17, z: -0.16, rx: -0.06 },
+      }[vehicleKey];
+      hero.position.set(0, pose.y, pose.z);
+      hero.rotation.x = pose.rx;
       holder.add(hero);
     }
   }
@@ -316,13 +329,29 @@ export class Game {
     const p = this.player;
     const speed2D = Math.hypot(p.vel.x, p.vel.z);
     const isRun = p.vehicleKey === 'run' || !p.vehicleKey;
-    const runW = isRun && p.grounded && speed2D > 0.4
+    const runT = isRun && p.grounded && speed2D > 0.4
       ? Math.min(speed2D / p.vehicle.maxSpeed, 1) : 0;
-    const w = a.run.getEffectiveWeight() + (runW - a.run.getEffectiveWeight()) * Math.min(1, dt * 10);
-    a.run.setEffectiveWeight(w);
-    a.idle.setEffectiveWeight(1 - w);
+    // 안장 있는 탈것은 앉은 자세 (킥보드는 서서 타는 게 맞음)
+    const sitT = a.sit && (p.vehicleKey === 'bicycle' || p.vehicleKey === 'scooter') ? 1 : 0;
+    const k = Math.min(1, dt * 10);
+    const rw = a.run.getEffectiveWeight() + (runT - a.run.getEffectiveWeight()) * k;
+    const sw = a.sit ? a.sit.getEffectiveWeight() + (sitT - a.sit.getEffectiveWeight()) * k : 0;
+    a.run.setEffectiveWeight(rw);
+    a.sit?.setEffectiveWeight(sw);
+    a.idle.setEffectiveWeight(Math.max(0, 1 - rw - sw));
     a.run.timeScale = 0.55 + (speed2D / p.vehicle.maxSpeed) * 0.75;
     a.mixer.update(dt);
+    // Chair_Sit 클립은 팔꿈치-무릎 슬라우치라 탑승 자세로 상체를 펴준다 (mixer 이후 매 프레임)
+    if (sw > 0.01) {
+      if (this._spineBones === undefined) {
+        const found = {};
+        a.model.traverse((o) => { if (o.isBone) found[o.name] = o; });
+        this._spineBones = ['Spine', 'Spine01', 'Spine02', 'neck'].every((n) => found[n])
+          ? [[found.Spine, 0.13], [found.Spine01, 0.13], [found.Spine02, 0.13], [found.neck, 0.06]]
+          : null;
+      }
+      if (this._spineBones) for (const [b, amt] of this._spineBones) b.rotation.x -= amt * sw;
+    }
   }
 
   applySeason(key) {
