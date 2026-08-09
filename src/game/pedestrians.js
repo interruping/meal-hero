@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { loadAnimated, instantiateAnimated, addSkinnedOutline, applyHeadRatio } from '../core/loader.js';
 import { terrainHeight } from './heightfield.js';
-import { STREETS, ROAD_HALF, MAP_HALF } from './citymap.js';
+import { STREETS, MAP_HALF, WALK_MID, LANE_HALF } from './citymap.js';
 
 // 행인 10종 — Meshy 리깅+걷기 애니메이션 GLB를 골목 그리드 위에서 배회시킨다.
 // 게임플레이 영향 없음(통과 가능): 동네 생활감 연출용 (§7.7)
+// §15.4 (FR-36): 인도(|lateral| 1.9~3.0)로만 다닌다 — 차도 진입 금지
 
 const PED_NAMES = [
   'ped-ajumma', 'ped-grandpa', 'ped-schoolgirl', 'ped-schoolboy', 'ped-officeman',
@@ -57,7 +58,7 @@ export class Pedestrians {
     action.timeScale = 0.85 + Math.random() * 0.35;
     const w = {
       model, mixer,
-      axis: 'z', line: 0, lateral: ROAD_HALF - 0.7, t: 0,
+      axis: 'z', line: 0, lateral: WALK_MID, t: 0,
       dir: Math.random() < 0.5 ? -1 : 1,
       speed: 1.15 + Math.random() * 0.5,
       yaw: 0,
@@ -69,7 +70,7 @@ export class Pedestrians {
       const cand = {
         axis: Math.random() < 0.5 ? 'x' : 'z',
         line: STREETS[Math.floor(Math.random() * STREETS.length)],
-        lateral: (Math.random() < 0.5 ? -1 : 1) * (ROAD_HALF - 0.7),
+        lateral: (Math.random() < 0.5 ? -1 : 1) * WALK_MID,
         t: -LIMIT + Math.random() * LIMIT * 2,
       };
       const x = cand.axis === 'z' ? cand.line + cand.lateral : cand.t;
@@ -125,8 +126,9 @@ export class Pedestrians {
       if (nt > LIMIT || nt < -LIMIT) {
         w.dir *= -1;
       } else if (this.blocked(nx, nz)) {
-        // 막히면 도로 중앙 쪽으로 붙어보고, 그래도 막히면 회차
-        const inner = w.lateral * 0.3;
+        // 막히면 인도 안쪽 경계(차도 연석 직전)로 붙어보고, 그래도 막히면 회차 —
+        // 차도(|lateral| < LANE_HALF)로는 절대 내려서지 않는다 (§15.4)
+        const inner = Math.sign(w.lateral || 1) * (LANE_HALF + 0.12);
         const [ix, iz] = w.axis === 'z' ? [w.line + inner, nt] : [nt, w.line + inner];
         if (!this.blocked(ix, iz)) w.lateral = inner;
         else w.dir *= -1;
@@ -144,8 +146,8 @@ export class Pedestrians {
             break;
           }
         }
-        // 도로변으로 서서히 복귀
-        const edge = Math.sign(w.lateral || 1) * (ROAD_HALF - 0.7);
+        // 인도 중심선으로 서서히 복귀
+        const edge = Math.sign(w.lateral || 1) * WALK_MID;
         w.lateral += (edge - w.lateral) * Math.min(1, dt * 0.4);
       }
       this.place(w);

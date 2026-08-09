@@ -69,6 +69,11 @@ export const MANIFEST = [
   { name: 'shop-dosirak', prompt: FACADE(`Korean lunchbox takeout shop storefront, blue sign with Korean text "한솥도시락", menu board with prices`) },
   { name: 'shop-tteokbokki', prompt: FACADE(`Korean tteokbokki specialty shop storefront, red awning, sign with Korean text "매운떡볶이", cartoon rice cake mascot`) },
   { name: 'shop-burger', prompt: FACADE(`retro burger joint storefront, yellow sign with Korean text "왕버거", burger photo poster in window`) },
+  // §15.4 인도(보도블럭) 계절 4종 (FR-36)
+  { name: 'sidewalk-spring', prompt: `Korean gray concrete sidewalk paving blocks, rectangular interlocking pattern, few cherry blossom petals, ${TILE}` },
+  { name: 'sidewalk-summer', prompt: `Korean gray concrete sidewalk paving blocks, rectangular interlocking pattern, sun-bleached with small weeds in cracks, ${TILE}` },
+  { name: 'sidewalk-autumn', prompt: `Korean gray concrete sidewalk paving blocks, rectangular interlocking pattern, scattered fallen brown leaves, ${TILE}` },
+  { name: 'sidewalk-winter', prompt: `Korean gray concrete sidewalk paving blocks, rectangular interlocking pattern, thin patchy snow on blocks, ${TILE}` },
   // §14.2 구멍가게 (빌라 사이 소형 가게)
   { name: 'shop-super', prompt: FACADE(`tiny old Korean corner store (gumeonggage), faded blue sign with Korean text "동네슈퍼", stacked crates of drinks and snacks by door, single sliding glass door`) },
   { name: 'shop-baekban', prompt: FACADE(`small humble Korean home-style meal diner storefront, worn white sign with Korean text "엄마손 백반", handwritten menu paper on window, sliding aluminum door`) },

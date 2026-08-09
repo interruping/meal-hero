@@ -23,6 +23,7 @@ import { AudioSys } from '../core/audio.js';
 import { setupWalkAnimation, addOutline } from './walkanim.js';
 import { NavMap } from './navmap.js';
 import { ArrowGuide } from './arrow.js';
+import { Traffic } from './traffic.js';
 
 const SAVE_KEY = 'mealhero-save-v2'; // §12 경제 개편으로 세이브 포맷 리셋
 
@@ -152,6 +153,9 @@ export class Game {
     this.props = buildProps(this.world, this.scene, Object.fromEntries(propEntries));
     // 차량은 소품 뒤에 배치 — 소품 풋프린트(world.propBoxes)와 겹침 회피
     placeParkedVehicles(this.world, this.scene, { sedan: parkedSedan, truck: parkedTruck });
+    // §15.4 (FR-36) 차도 주행 차량 — 주차 차량과 같은 Meshy 모델 재사용
+    this.traffic = new Traffic(this.scene, this.world, { sedan: parkedSedan, truck: parkedTruck },
+      (car, fx, fz) => this.onCarHit(fx, fz));
     this.applySeason('spring');
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;
@@ -436,6 +440,11 @@ export class Game {
       m.material.map = tex(`road-${key}`);
       m.material.needsUpdate = true;
     });
+    // §15.4 인도 보도블럭 계절 교체 (FR-36)
+    this.world.sidewalks.children.forEach((m) => {
+      m.material.map = tex(`sidewalk-${key}`);
+      m.material.needsUpdate = true;
+    });
     if (this.props) {
       this.props.treeMat.map = tex(`tree-${key}`);
       this.props.treeMat.needsUpdate = true;
@@ -638,6 +647,20 @@ export class Game {
     this.audio.play('pickup');
   }
 
+  // §15.4 (FR-36) 차에 치임: 즉시 하트 1 + 진행 방향으로 코믹하게 튕겨나감
+  onCarHit(fx, fz) {
+    const p = this.player;
+    if (this.state !== 'playing') return;
+    if (p.time < (p.carHitCooldownUntil ?? 0)) return;
+    p.carHitCooldownUntil = p.time + 1.2;
+    p.flashUntil = p.time + 0.6;
+    p.vel.x = fx * 16;
+    p.vel.z = fz * 16;
+    p.vel.y = 5.5;
+    this.ui.toast('빵빵!! 무자비한 차에 치였다 (-체력 1)', 1800);
+    this.damage(1, 'crash');
+  }
+
   damage(n, cause) {
     if (this.state !== 'playing') return;
     this.stage_.hp -= n;
@@ -730,6 +753,8 @@ export class Game {
       this.updateHeroAnim(dt);
       this.updateHitFlash();
       this.peds?.update(dt);
+      // §15.4 차량은 상시 주행, 충돌 판정은 플레이 중에만
+      this.traffic?.update(dt, this.player, this.state === 'playing');
     }
 
     this.cam.update(dt, this.input, this.player.pos, {
