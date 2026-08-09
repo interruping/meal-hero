@@ -21,11 +21,15 @@ const CSS = `
   padding: 22px 30px; max-width: 560px; image-rendering: pixelated; }
 .mh-title { font-size: 44px; letter-spacing: 4px; margin: 0; color: #3a3a38; }
 .mh-sub { font-size: 15px; margin: 6px 0 0; color: #6a6a66; }
-.mh-btn { pointer-events: auto; font-family: inherit; font-size: 19px; padding: 12px 26px; margin: 4px;
-  background: #3a3a38; color: #efeeea; border: 2px solid #3a3a38; cursor: pointer; }
-.mh-btn:hover { background: #b5372f; border-color: #b5372f; }
-.mh-btn.small { font-size: 16px; padding: 8px 14px; }
-.mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block; }
+/* §15.3 (FR-35) 버튼 체계: 크기 전부 동일, 기본 선택지 1개만 .primary 악센트 */
+.mh-btn { pointer-events: auto; font-family: inherit; font-size: 17px; padding: 11px 22px; margin: 4px;
+  background: #6a6a66; color: #efeeea; border: 2px solid #3a3a38; cursor: pointer; }
+.mh-btn:hover { background: #7a7a76; }
+.mh-btn.primary { background: #b5372f; border-color: #7e2620; font-weight: bold; }
+.mh-btn.primary:hover { background: #c9463d; }
+.mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block;
+  word-break: keep-all; }
+.mh-controls b { color: #b5372f; } /* §15.3 키 이름 악센트 */
 .mh-caption { font-size: 22px; line-height: 1.8; }
 .mh-hint { font-size: 14px; color: #7a7a76; }
 /* §14.6 튜토리얼 (FR-32): 배경 디밍 + 대상 UI 테두리 강조 + 안내 패널 */
@@ -306,19 +310,19 @@ export class UI {
       <div class="mh-panel">
         <h1 class="mh-title">MEAL HERO</h1>
         <p class="mh-sub">빚 2,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
-        <div style="margin-top:16px"><button class="mh-btn" id="btn-start">배달 시작</button>${continueBtn}</div>
+        <div style="margin-top:16px"><button class="mh-btn primary" id="btn-start">배달 시작</button>${continueBtn}</div>
         <div style="margin-top:14px" class="mh-controls">
-          [W A S D] 이동 · [마우스] 시점 · [Space] 점프<br>
-          [1~4] 배달 의뢰 수락 / 수령 영수증 선택 · [E] 픽업 / 전달<br>
-          [Shift] 대시 (3초 가속, 쿨 10초) · [Q] 에너지 드링크 ₩1,500 (쿨 초기화)<br>
-          [M] 누르고 있으면 네비게이션 · [R] 재시작
+          <b>[W A S D]</b> 이동 · <b>[마우스]</b> 시점 · <b>[Space]</b> 점프<br>
+          <b>[1~4]</b> 배달 의뢰 수락 / 수령 영수증 선택 · <b>[E]</b> 픽업 / 전달<br>
+          <b>[Shift]</b> 대시 (3초 가속, 쿨 10초) · <b>[Q]</b> 에너지 드링크 ₩1,500 (쿨 초기화)<br>
+          <b>[M]</b> 누르고 있으면 네비게이션 · <b>[R]</b> 재시작
         </div>
         <div style="margin-top:14px">
           <div class="mh-hint">심사 모드 — 스테이지 바로가기</div>
-          <button class="mh-btn small" data-stage="0">1 봄</button>
-          <button class="mh-btn small" data-stage="1">2 여름</button>
-          <button class="mh-btn small" data-stage="2">3 가을</button>
-          <button class="mh-btn small" data-stage="3">4 겨울</button>
+          <button class="mh-btn" data-stage="0">1 봄</button>
+          <button class="mh-btn" data-stage="1">2 여름</button>
+          <button class="mh-btn" data-stage="2">3 가을</button>
+          <button class="mh-btn" data-stage="3">4 겨울</button>
         </div>
       </div>
     `);
@@ -391,11 +395,11 @@ export class UI {
       : '';
     const s = this.screen(`
       <div class="mh-panel">
-        <div class="mh-sub">STAGE ${stage.id}</div>
-        <div class="mh-caption" style="margin:10px 0">${stage.intro}</div>
-        <div class="mh-sub">이동 수단: ${vehicleLabel} · 남은 빚 ₩${debt.toLocaleString()} · 제한 시간 10분</div>
+        <div class="mh-title" style="font-size:30px">STAGE ${stage.id}</div>
+        <div class="mh-caption" style="margin:10px 0; font-size:19px">${stage.intro}</div>
+        <div class="mh-sub">이동 수단: <b>${vehicleLabel}</b> · 남은 빚 <b>₩${debt.toLocaleString()}</b> · 제한 시간 <b>10분</b></div>
         ${obsHtml}
-        <div style="margin-top:14px"><button class="mh-btn" id="btn-go">출발</button></div>
+        <div style="margin-top:14px"><button class="mh-btn primary" id="btn-go">출발</button></div>
       </div>
     `);
     if (obstacle) s.querySelector('.io-view').appendChild(obstacle.canvas);
@@ -417,7 +421,7 @@ export class UI {
           빚 ₩${debtBefore.toLocaleString()} → <b style="color:#b5372f">₩${debtAfter.toLocaleString()}</b>
         </div>
         ${bridge}
-        <button class="mh-btn" id="btn-next">${isLast ? '엔딩 보기' : '다음 계절로'}</button>
+        <button class="mh-btn primary" id="btn-next">${isLast ? '엔딩 보기' : '다음 계절로'}</button>
       </div>
     `);
     s.querySelector('#btn-next').addEventListener('click', onNext);
@@ -428,7 +432,7 @@ export class UI {
       <div class="mh-panel">
         <div class="mh-title" style="font-size:30px; color:#b5372f">배달 실패…</div>
         <div class="mh-sub" style="margin:12px 0">${reason}</div>
-        <button class="mh-btn" id="btn-retry">[R] 다시 도전</button>
+        <button class="mh-btn primary" id="btn-retry">[R] 다시 도전</button>
       </div>
     `);
     s.querySelector('#btn-retry').addEventListener('click', onRetry);
@@ -446,9 +450,11 @@ export class UI {
     const tail = paid
       ? '<div class="mh-sub">주인공은 이제… 자기 가게를 차리기로 했다. 아마도.</div>'
       : '';
+    // §15.3: 기본 선택지 1개만 악센트 — 재도전이 있으면 재도전, 없으면 타이틀로
     const retryBtn = onRetryWinter
-      ? '<button class="mh-btn" id="btn-retry-winter">겨울 재도전</button>'
+      ? '<button class="mh-btn primary" id="btn-retry-winter">겨울 재도전</button>'
       : '';
+    const titleCls = onRetryWinter ? 'mh-btn' : 'mh-btn primary';
     const s = this.screen(`
       <div class="mh-panel">
         ${head}
@@ -459,7 +465,7 @@ export class UI {
           충돌 사고: ${career.hits}회
         </div>
         ${tail}
-        <div style="margin-top:14px">${retryBtn}<button class="mh-btn" id="btn-title">타이틀로</button></div>
+        <div style="margin-top:14px">${retryBtn}<button class="${titleCls}" id="btn-title">타이틀로</button></div>
       </div>
     `);
     s.querySelector('#btn-title').addEventListener('click', onTitle);
@@ -470,10 +476,10 @@ export class UI {
   showTutorialAsk({ onYes, onNo }) {
     const s = this.screen(`
       <div class="mh-panel">
-        <div class="mh-caption">튜토리얼을 할까요?</div>
+        <div class="mh-title" style="font-size:26px">튜토리얼을 할까요?</div>
         <div class="mh-sub" style="margin:8px 0">배달 수락부터 전달까지 4단계로 안내합니다 (진행 중 타이머 정지)</div>
         <div style="margin-top:14px">
-          <button class="mh-btn" id="btn-tut-yes">예, 배워볼게요</button>
+          <button class="mh-btn primary" id="btn-tut-yes">예, 배워볼게요</button>
           <button class="mh-btn" id="btn-tut-no">아니오, 바로 시작</button>
         </div>
       </div>
@@ -501,11 +507,11 @@ export class UI {
   showPause({ onResume, onRestart, onMenu }) {
     const s = this.screen(`
       <div class="mh-panel">
-        <div class="mh-caption">일시 정지</div>
+        <div class="mh-title" style="font-size:26px">일시 정지</div>
         <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px; align-items:center">
-          <button class="mh-btn" id="btn-resume">계속하기</button>
-          <button class="mh-btn small" id="btn-restart">스테이지 재시작</button>
-          <button class="mh-btn small" id="btn-menu">메인 메뉴로 돌아가기</button>
+          <button class="mh-btn primary" id="btn-resume">계속하기</button>
+          <button class="mh-btn" id="btn-restart">스테이지 재시작</button>
+          <button class="mh-btn" id="btn-menu">메인 메뉴로 돌아가기</button>
         </div>
         <div class="mh-hint" style="margin-top:10px">[ESC] 계속하기</div>
       </div>
@@ -519,7 +525,7 @@ export class UI {
 
   updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full, playerPos, skill }) {
     this.el('#hud-money').innerHTML =
-      `매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br>순수익 ₩${(revenue - fees).toLocaleString()}`;
+      `매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br><b>순수익 ₩${(revenue - fees).toLocaleString()}</b>`;
     // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
     if (hp !== this._lastHp) {
       this._lastHp = hp;
