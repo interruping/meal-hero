@@ -296,7 +296,7 @@ export class Game {
       const pose = {
         kickboard: { y: 0.14, z: -0.05, rx: 0 },
         bicycle: { y: 0.33, z: 0.1, rx: -0.06 },
-        scooter: { y: 0.29, z: -0.04, rx: -0.06 },
+        scooter: { y: 0.30, z: 0.22, rx: -0.06 },
       }[vehicleKey];
       hero.position.set(0, pose.y, pose.z);
       hero.rotation.x = pose.rx;
