@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { loadAnimated, instantiateAnimated, addSkinnedOutline } from '../core/loader.js';
+import { loadAnimated, instantiateAnimated, addSkinnedOutline, applyHeadRatio } from '../core/loader.js';
 import { terrainHeight } from './heightfield.js';
 import { STREETS, ROAD_HALF, MAP_HALF } from './citymap.js';
 
@@ -45,6 +45,12 @@ export class Pedestrians {
 
   spawn(asset) {
     const { model, mixer, clips } = instantiateAnimated(asset);
+    // 클립의 Head scale 트랙 제거 — 안 하면 mixer가 매 프레임 머리 스케일을 원복시킴
+    for (const c of clips) {
+      c.tracks = c.tracks.filter((t) => !/head\.scale$/i.test(t.name));
+    }
+    // 주인공 머리 비중(실측 0.316)에 맞춰 가분수 정합
+    applyHeadRatio(model, 0.316, asset.targetHeight);
     addSkinnedOutline(model, 0.02);
     const action = mixer.clipAction(clips[0]);
     action.play();
