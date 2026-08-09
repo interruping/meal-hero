@@ -65,7 +65,13 @@ Library 액션 적용(3cr) → 애니메이션 GLB 다운로드 → 256px 축소
 "oversized big head taking one third of total height, short stubby legs" 계열로 강화해
 10종 전부 재생성 (`scripts/meshy-ped-chibi.mjs`, 상태 `rig-report-chibi.json`).
 3차 소계: **235 크레딧** (재생성 230 + hoodie 리깅 결과물 손상 재리깅 5). 잔액 256 실측.
-검증: 주인공 옆 나란히 세워 비율 비교 스크린샷.
+
+**3차 결과 폐기·런타임 보정으로 전환**: 3차는 극단 가분수·정상 비율 혼재에 텍스처 파손
+2종(몸통에 얼굴 매핑)까지 나와 사용 불가 판정. 추가 재생성 대신 텍스처가 온전한 2차 GLB를
+복원하고, 주인공 머리 비중 실측값(전체 높이의 0.316)에 맞춰 Head 본을 런타임 스케일하는
+`applyHeadRatio`로 비율을 정합했다 (걷기 클립의 Head.scale 트랙 제거 필요 — mixer가 매
+프레임 원복시키는 문제). 추가 크레딧 0으로 해결, 교훈: 비율은 프롬프트 재생성 도박보다
+본 스케일 후처리가 확실하고 저렴하다.
 
 ## gpt-image-2 생성 텍스처 (2026-08-09)
 

@@ -62,6 +62,8 @@ export async function loadAnimated(name, targetHeight) {
 // 렌더 파이프라인과 동일하게 본 변형 정점을 샘플링해 잰다.
 function skinnedBounds(root) {
   root.updateMatrixWorld(true);
+  // 렌더 전 호출 시 boneMatrices가 구본(스케일 변경 반영 전)일 수 있어 강제 갱신
+  root.traverse((o) => { if (o.isSkinnedMesh) o.skeleton.update(); });
   const box = new THREE.Box3();
   const v = new THREE.Vector3();
   root.traverse((o) => {
@@ -94,6 +96,33 @@ export function instantiateAnimated(asset) {
   wrapper.add(inst);
   const mixer = new THREE.AnimationMixer(inst);
   return { model: wrapper, mixer, clips: asset.clips };
+}
+
+// 머리 본 스케일로 가분수 비율 정합 — 정상 비율 모델의 머리 비중을 주인공과
+// 동일한 targetFrac(주인공 실측 0.316)으로 키워 톤앤매너를 맞춘다.
+// 재생성 크레딧 없이 런타임에서 해결. 스케일 후 전체 높이를 다시 정규화한다.
+export function applyHeadRatio(wrapper, targetFrac, targetHeight) {
+  const inst = wrapper.children[0];
+  let headBone = null;
+  inst.traverse((o) => { if (o.isBone && /^head/i.test(o.name) && !headBone) headBone = o; });
+  if (!headBone) return;
+  wrapper.updateMatrixWorld(true);
+  const box = skinnedBounds(inst);
+  const headY = headBone.getWorldPosition(new THREE.Vector3()).y;
+  const h = box.max.y - headY;
+  const b = headY - box.min.y;
+  if (h <= 0 || b <= 0) return;
+  const s = (targetFrac * b) / (h * (1 - targetFrac));
+  headBone.scale.multiplyScalar(Math.min(3.4, Math.max(0.7, s)));
+  // 커진 머리만큼 높이 재정규화 (발밑 원점 유지)
+  inst.scale.setScalar(1);
+  inst.position.set(0, 0, 0);
+  const box2 = skinnedBounds(inst);
+  const size = box2.getSize(new THREE.Vector3());
+  const scale = targetHeight / (size.y || 1);
+  const center = box2.getCenter(new THREE.Vector3());
+  inst.scale.setScalar(scale);
+  inst.position.set(-center.x * scale, -box2.min.y * scale, -center.z * scale);
 }
 
 // 스킨드 메시용 실루엣 아웃라인 — 본을 따라가는 인버티드 헐 (정적 헐은 애니메이션에 못 씀)
