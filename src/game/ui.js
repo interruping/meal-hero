@@ -201,14 +201,21 @@ export class UI {
     s.querySelector('#btn-title').addEventListener('click', onTitle);
   }
 
-  showPause(onResume) {
+  showPause({ onResume, onRestart, onMenu }) {
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-caption">일시 정지</div>
-        <div class="mh-hint" style="margin-top:10px">클릭하면 계속합니다</div>
+        <div style="margin-top:14px; display:flex; flex-direction:column; gap:8px; align-items:center">
+          <button class="mh-btn" id="btn-resume">계속하기</button>
+          <button class="mh-btn small" id="btn-restart">스테이지 재시작</button>
+          <button class="mh-btn small" id="btn-menu">메인 메뉴로 돌아가기</button>
+        </div>
+        <div class="mh-hint" style="margin-top:10px">[ESC] 계속하기</div>
       </div>
     `);
-    s.addEventListener('click', onResume);
+    s.querySelector('#btn-resume').addEventListener('click', onResume);
+    s.querySelector('#btn-restart').addEventListener('click', onRestart);
+    s.querySelector('#btn-menu').addEventListener('click', onMenu);
   }
 
   setHudVisible(v) { this.hud.style.display = v ? 'block' : 'none'; if (!v) this.hideHint(); }

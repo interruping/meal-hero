@@ -382,6 +382,23 @@ export class Game {
     this.startStage(this.stageIdx); // FR-9 상태 완전 초기화 재시작
   }
 
+  pauseGame() {
+    this.state = 'paused';
+    this._resumePause = () => {
+      this.ui.clearScreen();
+      this.state = 'playing';
+      this.input.requestPointerLock();
+    };
+    this.ui.showPause({
+      onResume: this._resumePause,
+      onRestart: () => this.retry(),
+      onMenu: () => {
+        this.ui.clearScreen();
+        this.showTitle();
+      },
+    });
+  }
+
   showEnding() {
     this.state = 'ending';
     this.ui.showEnding({ ...this.career, debt: TOTAL_DEBT }, () => this.showTitle());
@@ -423,16 +440,12 @@ export class Game {
     this.input.freeLook = this.state === 'playing';
 
     if (this.state === 'playing') {
-      // 락을 잡았다가 잃은 경우(Esc)만 일시정지 — 락 실패 환경에선 그냥 계속
+      // Esc 일시정지: 포인터록 중엔 브라우저가 Esc를 락 해제로 소비하므로
+      // 락 상실로 감지, 락 없는 환경(폴백·?nolock)은 keydown으로 감지
       const locked = this.input.pointerLocked;
-      if (this._hadLock && !locked) {
+      if ((this._hadLock && !locked) || this.input.justPressed('Escape')) {
         this._hadLock = false;
-        this.state = 'paused';
-        this.ui.showPause(() => {
-          this.ui.clearScreen();
-          this.state = 'playing';
-          this.input.requestPointerLock();
-        });
+        this.pauseGame();
       } else {
         this._hadLock = locked;
         this.player.update(dt, this.input, this.cam.yaw);
@@ -440,6 +453,8 @@ export class Game {
         this.obstacles.update(dt);
         this.updateHUD();
       }
+    } else if (this.state === 'paused') {
+      if (this.input.justPressed('Escape')) this._resumePause?.();
     } else if (this.state === 'gameover') {
       if (this.input.justPressed('KeyR')) this.retry();
     }

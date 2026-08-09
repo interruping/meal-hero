@@ -73,5 +73,12 @@
     "anims": {
       "-walk": "019fe427-1865-7585-b2da-be2ebd0c3730"
     }
+  },
+  "obstacle-flyer-worker": {
+    "rigId": "019fe566-dc63-750c-94a8-a2da30ee8a1e",
+    "anims": {
+      "-walk": "019fe567-710a-7525-a469-05c58aeaf1b1",
+      "-idle": "019fe568-7f83-7d8d-9366-934c6a1301b2"
+    }
   }
 }
