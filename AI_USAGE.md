@@ -6,7 +6,7 @@
 
 | 도구 | 사용량 | 잔여/한도 |
 |---|---|---|
-| Meshy.ai | **360 크레딧** (24모델 × 15cr) | 740 / 1,100 |
+| Meshy.ai | **609 크레딧** (모델 24 + 행인 10 + 리깅 12 + 애니메이션 15) | 491 / 1,100 (API 실측) |
 | OpenRouter gpt-image-2 | **$0.43** (72장 × low $0.006) | $20 한도 |
 
 ## 개발 도구
@@ -39,6 +39,25 @@
 합계: **360 크레딧**, 실패·재시도 0회.
 
 추가 텍스처: `flyer-paper.png` — 전단지 발사체용 (알바생 투척 연출, $0.006).
+
+## Meshy.ai 리깅·애니메이션 (2026-08-09, 2차)
+
+파이프라인: `scripts/meshy-rig-batch2.mjs` — text-to-3d(a-pose) → rigging(5cr) → Animation
+Library 액션 적용(3cr) → 애니메이션 GLB 다운로드 → 256px 축소. 버텍스 변형 걷기(다리 늘어남
+문제)를 스켈레톤 애니메이션으로 교체하기 위함.
+
+| 파일 | 용도 | 액션 (action_id) | 크레딧 |
+|---|---|---|---|
+| character-hero-run/-idle.glb | 주인공 달리기·대기 크로스페이드 | Run_02(14) / Idle(0) | 리깅5+애니6 |
+| obstacle-drunk-walk.glb | 취객 비틀걸음 | Stumble_Walk(562) | 리깅5+애니3 |
+| ped-ajumma/-grandpa/-schoolgirl/-schoolboy/-officeman/-officewoman-walk.glb | 행인 배회 6종 (신규 생성+리깅) | Casual_Walk(30) / Walking_Woman(1) | 생성90+리깅30+애니18 |
+
+| ped-jogger/-shopkeeper/-rider/-hoodie-walk.glb | 행인 배회 4종 추가 (재시도 성공, 총 10종) | Casual_Walk(30) / Walking_Woman(1) | 생성60+리깅20+애니12 |
+
+2차 소계: **249 크레딧** (잔액 491 API 실측). 시행착오: (1) action_id를 문서 확인 없이
+추정해 전량 400 오류(과금 0) — 애니메이션 라이브러리 문서의 정수 ID로 교정.
+(2) 행인 4종이 Meshy 서버 측 "could not be finalized"로 preview 실패(과금 0) — 재시도로
+전원 성공. 통합 검증: 행인 10종 전부 인게임 스크린샷으로 확인.
 
 ## gpt-image-2 생성 텍스처 (2026-08-09)
 

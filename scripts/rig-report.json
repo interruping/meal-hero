@@ -1,0 +1,77 @@
+{
+  "character-hero": {
+    "rigId": "019fe414-b908-7c08-8fe4-f8a360d53653",
+    "anims": {
+      "-run": "019fe415-72ac-7655-966b-164ee6870437",
+      "-idle": "019fe415-a021-7ae2-aea3-caf08034be68"
+    }
+  },
+  "obstacle-drunk": {
+    "rigId": "019fe414-b918-762c-b4ce-bfff9db64a51",
+    "anims": {
+      "-walk": "019fe415-49e8-7ad5-ae88-54f4e3627438"
+    }
+  },
+  "ped-grandpa": {
+    "anims": {
+      "-walk": "019fe414-b91b-762d-9960-a54a67b67f2a"
+    }
+  },
+  "ped-ajumma": {
+    "anims": {
+      "-walk": "019fe414-e838-7634-8b70-c260c01cd5b3"
+    }
+  },
+  "ped-schoolgirl": {
+    "anims": {
+      "-walk": "019fe415-185a-7640-a8ad-110ed1b168b3"
+    }
+  },
+  "ped-schoolboy": {
+    "anims": {
+      "-walk": "019fe415-464a-737e-aaf1-bcf70cb544ad"
+    }
+  },
+  "ped-officeman": {
+    "anims": {
+      "-walk": "019fe415-74e5-7c1d-9389-07a42e88c321"
+    }
+  },
+  "ped-officewoman": {
+    "anims": {
+      "-walk": "019fe415-753a-7384-b9c7-77117e86ae1b"
+    }
+  },
+  "ped-jogger": {
+    "previewId": "019fe420-09f7-7dce-94e1-8ba4909a9bb5",
+    "refineId": "019fe422-1dfc-750d-956c-324a36de1641",
+    "rigId": "019fe423-3bbd-751e-86e2-a6d6c5dbcb96",
+    "anims": {
+      "-walk": "019fe423-cd94-752c-8cf1-5c63ea3b7500"
+    }
+  },
+  "ped-shopkeeper": {
+    "previewId": "019fe420-09f7-77aa-adfd-3f5c952ca958",
+    "refineId": "019fe422-1cfb-77f3-b719-6b4ba31f5b67",
+    "rigId": "019fe425-e5af-7cf6-8b09-735f6919d3c8",
+    "anims": {
+      "-walk": "019fe426-79c9-7e70-9a88-792ef7ee1db1"
+    }
+  },
+  "ped-rider": {
+    "previewId": "019fe420-09fe-7c2a-957e-4d49dddaef7d",
+    "refineId": "019fe422-46a2-750f-9bc5-bfcf63e5ef4c",
+    "rigId": "019fe423-b3fc-752a-8d31-ce5943a690ff",
+    "anims": {
+      "-walk": "019fe424-487c-7cba-b2e8-942f36a21b31"
+    }
+  },
+  "ped-hoodie": {
+    "previewId": "019fe423-f9a2-7e21-afd7-90a41de2475d",
+    "refineId": "019fe424-f05c-7e36-879b-d32cbae42c98",
+    "rigId": "019fe426-838c-7d10-ab4d-0ff5ccf65ac0",
+    "anims": {
+      "-walk": "019fe427-1865-7585-b2da-be2ebd0c3730"
+    }
+  }
+}

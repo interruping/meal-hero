@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { loadModel } from '../core/loader.js';
+import { loadModel, loadAnimated, instantiateAnimated, addSkinnedOutline } from '../core/loader.js';
 import { makeBlobShadow } from './shadow.js';
 import { addOutline } from './walkanim.js';
 import { sharedMat } from './textures.js';
@@ -232,6 +232,7 @@ class Drunk {
   update(dt, player) {
     this.time += dt;
     this.cooldown -= dt;
+    this.mixer?.update(dt);
     // 지그재그: 헤딩이 사인파로 흔들림
     this.heading += Math.sin(this.time * 1.3) * dt * 2.2 + (Math.random() - 0.5) * dt * 2;
     const d = player.pos.distanceTo(this.pos);
@@ -297,6 +298,12 @@ export class ObstacleManager {
     this.protoKid = await loadModel('obstacle-kid-bike', 1.35);
     this.protoPigeon = await loadModel('obstacle-pigeon', 0.32);
     this.protoDrunk = await loadModel('obstacle-drunk', 1.7);
+    // 취객 스켈레톤 비틀걸음 (Meshy Stumble_Walk) — 리깅 GLB 없으면 정적 폴백
+    try {
+      this.drunkAsset = await loadAnimated('obstacle-drunk-walk', 1.7);
+    } catch {
+      this.drunkAsset = null;
+    }
     // 실루엣 아웃라인 (블롭 섀도보다 먼저 — 섀도 평면은 헐 제외)
     for (const proto of [this.protoFlyer, this.protoKid, this.protoPigeon, this.protoDrunk]) {
       addOutline(proto);
@@ -336,19 +343,20 @@ export class ObstacleManager {
     this.active = kinds;
 
     if (kinds.includes('flyer')) {
-      // 상가 골목 위주 + 골목 모퉁이
+      // 맵 전역 골목에 분산 — 서로 최소 18m 간격 (상가 앞 몰림 방지)
       const spots = [];
-      for (let i = 0; i < 3 + density; i++) {
-        const x = -60 + Math.random() * 120;
-        const z = 66 + Math.random() * 6; // 상가 앞
-        spots.push(new THREE.Vector3(x, this.world.groundHeight(x, z), z));
-      }
-      for (let i = 0; i < density; i++) {
-        const s = STREETS[Math.floor(Math.random() * STREETS.length)];
-        const t = -60 + Math.random() * 120;
-        const x = Math.random() < 0.5 ? s + 2 : t;
-        const z = x === t ? s + 2 : t;
-        spots.push(new THREE.Vector3(x, this.world.groundHeight(x, z), z));
+      const total = 5 + density * 2;
+      for (let i = 0; i < total; i++) {
+        for (let attempt = 0; attempt < 12; attempt++) {
+          const s = STREETS[Math.floor(Math.random() * STREETS.length)];
+          const t = -72 + Math.random() * 144;
+          const vertical = Math.random() < 0.5;
+          const x = vertical ? s + (Math.random() < 0.5 ? -2 : 2) : t;
+          const z = vertical ? t : s + (Math.random() < 0.5 ? -2 : 2);
+          if (spots.some((p) => (p.x - x) ** 2 + (p.z - z) ** 2 < 18 * 18)) continue;
+          spots.push(new THREE.Vector3(x, this.world.groundHeight(x, z), z));
+          break;
+        }
       }
       if (!this.paperPool) this.paperPool = new PaperPool(this.scene, this.game);
       for (const p of spots) {
@@ -400,9 +408,25 @@ export class ObstacleManager {
         const z = vertical ? t : s1 - 10;
         const home = new THREE.Vector3(x, 0, z);
         home.y = this.world.groundHeight(x, z);
-        const m = this.protoDrunk.clone(true);
+        let m, mixer = null;
+        if (this.drunkAsset) {
+          const inst = instantiateAnimated(this.drunkAsset);
+          addSkinnedOutline(inst.model, 0.02);
+          const s = makeBlobShadow(0.5);
+          s.position.y = 0.04;
+          inst.model.add(s);
+          const act = inst.mixer.clipAction(inst.clips[0]);
+          act.play();
+          act.timeScale = 0.9 + Math.random() * 0.2;
+          m = inst.model;
+          mixer = inst.mixer;
+        } else {
+          m = this.protoDrunk.clone(true);
+        }
         this.group.add(m);
-        this.drunks.push(new Drunk(m, home, this.world, this.game));
+        const d = new Drunk(m, home, this.world, this.game);
+        d.mixer = mixer;
+        this.drunks.push(d);
       }
       this.introBanner('drunk');
     }

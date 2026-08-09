@@ -33,6 +33,21 @@ export function buildProps(world, scene, M) {
   const colliders = world.colliders;
   const rng = world.rng;
   const typeSet = new Set();
+  // 배치된 소품 풋프린트 기록 — 소품끼리·주차 차량과 겹침 방지
+  const placedBoxes = [];
+  world.propBoxes = placedBoxes;
+  const overlapsAny = (b, margin = 0.2) => {
+    for (const c of colliders) {
+      if (b.min.x < c.maxX + margin && b.max.x > c.minX - margin
+        && b.min.z < c.maxZ + margin && b.max.z > c.minZ - margin
+        && b.min.y < c.maxY && b.max.y > c.minY) return true;
+    }
+    for (const p of placedBoxes) {
+      if (b.min.x < p.maxX + margin && b.max.x > p.minX - margin
+        && b.min.z < p.maxZ + margin && b.max.z > p.minZ - margin) return true;
+    }
+    return false;
+  };
   const add = (type, obj, collide = false, pad = 0.05) => {
     typeSet.add(type);
     group.add(obj);
@@ -45,12 +60,16 @@ export function buildProps(world, scene, M) {
       });
     }
   };
-  // 모델 배치 헬퍼
-  const place = (type, key, x, z, yaw = null, collide = false, pad = 0.05) => {
+  // 모델 배치 헬퍼. opts.check: 기존 배치물과 겹치면 배치 취소(null 반환)
+  const place = (type, key, x, z, yaw = null, collide = false, opts = {}) => {
     const m = M[key].clone(true);
     m.position.set(x, H(x, z), z);
     m.rotation.y = yaw ?? rng() * Math.PI * 2;
-    add(type, m, collide, pad);
+    if (opts.scaleXZ) { m.scale.x *= opts.scaleXZ; m.scale.z *= opts.scaleXZ; }
+    const b = new THREE.Box3().setFromObject(m);
+    if (opts.check && overlapsAny(b)) return null;
+    add(type, m, collide, opts.pad ?? 0.05);
+    placedBoxes.push({ minX: b.min.x, maxX: b.max.x, minZ: b.min.z, maxZ: b.max.z });
     return m;
   };
 
@@ -62,11 +81,12 @@ export function buildProps(world, scene, M) {
     for (let z = -75; z <= 60; z += 27) {
       const px = sx + ROAD_HALF + 0.6;
       const py = H(px, z);
-      place('전봇대', 'pole', px, z, rng() * Math.PI * 2);
+      // 실제 전봇대 비율로 슬림하게 (모델이 통짜로 굵게 나옴)
+      place('전봇대', 'pole', px, z, rng() * Math.PI * 2, false, { scaleXZ: 0.42 });
       colliders.push({
-        minX: px - 0.2, maxX: px + 0.2,
+        minX: px - 0.15, maxX: px + 0.15,
         minY: py, maxY: py + 7.5,
-        minZ: z - 0.2, maxZ: z + 0.2,
+        minZ: z - 0.15, maxZ: z + 0.15,
       });
       poleTops.push(new THREE.Vector3(px, py + 7.1, z));
     }
@@ -103,10 +123,14 @@ export function buildProps(world, scene, M) {
   // ── 4 쓰레기봉투 더미 ──
   const trashSpots = [];
   for (let i = 0; i < 14; i++) {
-    const sx = STREETS[Math.floor(rng() * STREETS.length)] + (rng() < 0.5 ? -1 : 1) * (ROAD_HALF - 0.6);
-    const sz = -75 + rng() * 140;
-    place('쓰레기봉투', 'trashpile', sx, sz);
-    trashSpots.push(new THREE.Vector3(sx, H(sx, sz), sz));
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const sx = STREETS[Math.floor(rng() * STREETS.length)] + (rng() < 0.5 ? -1 : 1) * (ROAD_HALF - 0.6);
+      const sz = -75 + rng() * 140;
+      if (place('쓰레기봉투', 'trashpile', sx, sz, null, false, { check: true })) {
+        trashSpots.push(new THREE.Vector3(sx, H(sx, sz), sz));
+        break;
+      }
+    }
   }
 
   // ── 5 화분 줄 ──
@@ -119,9 +143,11 @@ export function buildProps(world, scene, M) {
 
   // ── 6 평상 ──
   for (let i = 0; i < 5; i++) {
-    const x = STREETS[1 + Math.floor(rng() * 3)] + (rng() < 0.5 ? -5 : 5);
-    const z = -60 + rng() * 110;
-    place('평상', 'pyeongsang', x, z, null, true);
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const x = STREETS[1 + Math.floor(rng() * 3)] + (rng() < 0.5 ? -5 : 5);
+      const z = -60 + rng() * 110;
+      if (place('평상', 'pyeongsang', x, z, null, true, { check: true })) break;
+    }
   }
 
   // ── 7 실외기 (빌라 벽) ──
@@ -204,9 +230,11 @@ export function buildProps(world, scene, M) {
 
   // ── 18 소화전 ──
   for (let i = 0; i < 5; i++) {
-    const s = STREETS[Math.floor(rng() * STREETS.length)];
-    const t = STREETS[Math.floor(rng() * STREETS.length)];
-    place('소화전', 'hydrant', s + ROAD_HALF + 0.7, t + ROAD_HALF + 0.7);
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const s = STREETS[Math.floor(rng() * STREETS.length)];
+      const t = STREETS[Math.floor(rng() * STREETS.length)];
+      if (place('소화전', 'hydrant', s + ROAD_HALF + 0.7, t + ROAD_HALF + 0.7, null, false, { check: true })) break;
+    }
   }
 
   // ── 19 맨홀 (도로 데칼) ──
@@ -256,8 +284,10 @@ export function buildProps(world, scene, M) {
 
   // ── 23 고양이 ──
   for (let i = 0; i < 4; i++) {
-    const spot = trashSpots[Math.floor(rng() * trashSpots.length)];
-    place('고양이', 'cat', spot.x + 1.2, spot.z + 1.2);
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const spot = trashSpots[Math.floor(rng() * trashSpots.length)];
+      if (place('고양이', 'cat', spot.x + 1.2 + rng(), spot.z + 1.2 + rng(), null, false, { check: true })) break;
+    }
   }
 
   // ── 24 자전거 거치대 ──
@@ -368,25 +398,43 @@ export function placeParkedVehicles(world, scene, { sedan, truck }) {
     seed = (seed * 1103515245 + 12345) & 0x7fffffff;
     return seed / 0x7fffffff;
   };
+  // 소품·건물·다른 차와 겹치면 재시도 (자판기 위에 차 얹히는 사고 방지)
+  const propBoxes = world.propBoxes ?? [];
+  const overlaps = (b, margin = 0.3) => {
+    for (const c of world.colliders) {
+      if (b.min.x < c.maxX + margin && b.max.x > c.minX - margin
+        && b.min.z < c.maxZ + margin && b.max.z > c.minZ - margin
+        && b.min.y < c.maxY && b.max.y > c.minY) return true;
+    }
+    for (const p of propBoxes) {
+      if (b.min.x < p.maxX + margin && b.max.x > p.minX - margin
+        && b.min.z < p.maxZ + margin && b.max.z > p.minZ - margin) return true;
+    }
+    return false;
+  };
   for (let i = 0; i < 12; i++) {
     const isTruck = i % 3 === 2;
-    const vertical = rng() < 0.5;
-    const line = STREETS[Math.floor(rng() * STREETS.length)];
-    const t = -70 + rng() * 130;
-    const offset = (rng() < 0.5 ? -1 : 1) * (ROAD_HALF - 1.05);
-    const x = vertical ? line + offset : t;
-    const z = vertical ? t : line + offset;
-    const car = (isTruck ? truck : sedan).clone(true);
-    car.position.set(x, H(x, z), z);
-    // 길이축을 골목 방향으로 + 약간의 주차 각 오차
-    car.rotation.y = (vertical ? 0 : Math.PI / 2) + (rng() - 0.5) * 0.12 + (rng() < 0.5 ? Math.PI : 0);
-    group.add(car);
-    const b = new THREE.Box3().setFromObject(car);
-    world.colliders.push({
-      minX: b.min.x - 0.05, maxX: b.max.x + 0.05,
-      minY: b.min.y, maxY: b.max.y,
-      minZ: b.min.z - 0.05, maxZ: b.max.z + 0.05,
-    });
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const vertical = rng() < 0.5;
+      const line = STREETS[Math.floor(rng() * STREETS.length)];
+      const t = -70 + rng() * 130;
+      const offset = (rng() < 0.5 ? -1 : 1) * (ROAD_HALF - 1.05);
+      const x = vertical ? line + offset : t;
+      const z = vertical ? t : line + offset;
+      const car = (isTruck ? truck : sedan).clone(true);
+      car.position.set(x, H(x, z), z);
+      // 길이축을 골목 방향으로 + 약간의 주차 각 오차
+      car.rotation.y = (vertical ? 0 : Math.PI / 2) + (rng() - 0.5) * 0.12 + (rng() < 0.5 ? Math.PI : 0);
+      const b = new THREE.Box3().setFromObject(car);
+      if (overlaps(b)) continue;
+      group.add(car);
+      world.colliders.push({
+        minX: b.min.x - 0.05, maxX: b.max.x + 0.05,
+        minY: b.min.y, maxY: b.max.y,
+        minZ: b.min.z - 0.05, maxZ: b.max.z + 0.05,
+      });
+      break;
+    }
   }
   scene.add(group);
 }
