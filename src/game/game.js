@@ -6,9 +6,12 @@ import { PALETTES, FOG_NEAR, FOG_FAR } from './palettes.js';
 import { buildCity } from './citymap.js';
 import { Player } from './player.js';
 import { FollowCamera } from './camera.js';
-import { DeliveryManager, DeliveryPhase } from './delivery.js';
+import { DeliveryManager, MAX_ACTIVE, DELIVERY_COLORS_CSS } from './delivery.js';
 import { ObstacleManager } from './obstacles.js';
-import { STAGES, MAX_HP, MAX_MISSES, TOTAL_DEBT } from './stages.js';
+import {
+  STAGES, MAX_HP, TOTAL_DEBT, STAGE_TIME, SEASON_DAYS,
+  BONUS_TIME_RATIO, BONUS_MULT, LATE_FEE,
+} from './stages.js';
 import { VEHICLES } from './vehicles.js';
 import { loadModel, loadAnimated, instantiateAnimated, addSkinnedOutline } from '../core/loader.js';
 import { buildProps, placeParkedVehicles } from './props.js';
@@ -16,12 +19,13 @@ import { Pedestrians } from './pedestrians.js';
 import { tex } from './textures.js';
 import { AudioSys } from '../core/audio.js';
 import { setupWalkAnimation, addOutline } from './walkanim.js';
+import { NavMap } from './navmap.js';
 
-const SAVE_KEY = 'mealhero-save-v1';
+const SAVE_KEY = 'mealhero-save-v2'; // §12 경제 개편으로 세이브 포맷 리셋
 
 const OPENING_LINES = [
   '2026년 봄. 사업이 망했다.',
-  '남은 것은 빚 4,000만 원과 튼튼한 두 다리뿐.',
+  '남은 것은 빚 2,000만 원과 튼튼한 두 다리뿐.',
   '「Meal Hero」 — 가입만 하면 누구나 오늘부터 배달 히어로!',
   '…가입 완료. 봄부터 겨울까지, 1년 안에 다 갚는다.',
 ];
@@ -73,33 +77,45 @@ export class Game {
     };
     this.cam = new FollowCamera(this.world);
     this.delivery = new DeliveryManager(this.world, this.player, this.scene, {
-      onOrder: (o) => {
-        this.ui.banner(`새 주문! <b>${o.shop.name}</b> → ${o.door.name}<br><span style="font-size:13px">보수 ₩${o.pay.toLocaleString()}</span>`, 2600);
+      onAccept: (d) => {
+        this.ui.toast(`의뢰 수락! ${d.shop.name} → ${d.door.name}`, 1400);
         this.audio.play('order');
       },
-      onPickedUp: () => {
-        this.ui.banner('픽업 완료! 배달 시작', 1500);
+      onFull: () => this.ui.toast('가방이 가득! 동시 배달은 3건까지', 1400),
+      // FR-24 수령 코드 매칭 (§12.5): E 수령 시 영수증 4장 중 내 코드 고르기
+      onPickupRequest: (d) => this.startCodeMatch(d),
+      onPickedUp: (d) => {
+        this.ui.banner(`픽업 완료! <b>${d.door.name}</b>으로`, 1400);
         this.audio.play('pickup');
       },
-      onDelivered: (o) => {
-        this.stage_.revenue += o.pay;
-        this.career.revenue += o.pay;
+      onDelivered: (d) => {
+        // §12.3 스피드 보너스: 제한 시간 70% 이내 완료 시 +50%
+        const fast = (d.limit - d.timeLeft) <= d.limit * BONUS_TIME_RATIO;
+        const paid = fast ? Math.round(d.pay * BONUS_MULT) : d.pay;
+        this.stage_.revenue += paid;
+        this.career.revenue += paid;
         this.stage_.deliveries++;
         this.career.deliveries++;
-        this.ui.banner(`배달 완료! +₩${o.pay.toLocaleString()}`, 1800);
-        this.audio.play('deliver');
-        if (this.stage_.revenue >= this.stageCfg.goal) this.stageClear();
+        this.ui.banner(
+          fast
+            ? `배달 완료! +₩${paid.toLocaleString()} <span style="color:#b5372f">스피드 보너스!</span>`
+            : `배달 완료! +₩${paid.toLocaleString()}`,
+          1800,
+        );
+        this.audio.play(fast ? 'bonus' : 'deliver');
       },
-      onExpired: () => {
-        this.stage_.misses++;
-        this.ui.toast(`배달 시간 초과! (${this.stage_.misses}/${MAX_MISSES})`, 2200);
+      onExpired: (d) => {
+        // §12.3 지각 수수료 — 순수익이 음수가 되는 순간 게임오버
+        this.stage_.fees += LATE_FEE;
+        this.ui.toast(`${d.door.name} 배달 시간 초과! 수수료 -₩${LATE_FEE.toLocaleString()}`, 2200);
         this.audio.play('miss');
-        if (this.stage_.misses >= MAX_MISSES) {
-          this.gameOver('배달 시간 초과가 누적됐다. 고객 평점 바닥…');
+        if (this.stage_.revenue - this.stage_.fees < 0) {
+          this.gameOver('매출보다 수수료가 커졌다. 이번 분기는 적자…');
         }
       },
     });
     this.obstacles = new ObstacleManager(this.world, this.scene, this.player, this);
+    this.navMap = new NavMap(); // FR-20 네비게이션
     this.audio = new AudioSys();
     this.player.audio = this.audio;
 
@@ -185,7 +201,7 @@ export class Game {
     this.state = 'title';
     this.ui.setHudVisible(false);
     this.input.exitPointerLock();
-    this.audio.stopBGM();
+    this.audio.startBGM('menu'); // §12.6 메뉴 BGM (첫 제스처 시 재생 시작)
     const save = this.loadSave();
     this.ui.showTitle({
       onStart: () => this.startOpening(),
@@ -231,18 +247,20 @@ export class Game {
   startStage(idx) {
     this.stageIdx = idx;
     this.stageCfg = STAGES[idx];
-    this.stage_ = { revenue: 0, deliveries: 0, misses: 0, hp: MAX_HP };
+    this.stage_ = { revenue: 0, fees: 0, deliveries: 0, hp: MAX_HP, timeLeft: STAGE_TIME };
+    this.codeMatch = null;
+    this.ui.hideCodeMatch();
     this.applySeason(this.stageCfg.season);
     this.player.setVehicle(this.stageCfg.vehicle);
     this.player.slippery = !!this.stageCfg.slippery;
     this.player.reset();
     this.attachVehicleVisual(this.stageCfg.vehicle);
-    this.delivery.reset();
+    this.delivery.reset(this.stageCfg);
     this.obstacles.setup(this.stageCfg);
     this.cam.initialized = false;
     this.state = 'intro';
     this.ui.setHudVisible(false);
-    this.ui.showStageIntro(this.stageCfg, VEHICLES[this.stageCfg.vehicle].label, () => {
+    this.ui.showStageIntro(this.stageCfg, VEHICLES[this.stageCfg.vehicle].label, this.career.debt, () => {
       this.ui.clearScreen();
       this.state = 'playing';
       this.ui.setHudVisible(true);
@@ -382,10 +400,15 @@ export class Game {
     }
   }
 
-  stageClear() {
+  // §12.4 스테이지 정산: 10분 순수익 × 120일 = 스테이지 매출 → 빚 탕감
+  stageSettle() {
     if (this.state !== 'playing') return;
     this.state = 'clear';
-    this.career.debt -= this.stageCfg.goal;
+    const net = this.stage_.revenue - this.stage_.fees;
+    const settlement = Math.max(0, net) * SEASON_DAYS;
+    const debtBefore = this.career.debt;
+    this.career.debt = Math.max(0, this.career.debt - settlement);
+    this._debtBeforeStage = debtBefore; // 배드 엔딩 재도전 시 복원용
     this.input.exitPointerLock();
     this.ui.setHudVisible(false);
     this.audio.stopBGM();
@@ -398,8 +421,20 @@ export class Game {
     }
     // FR-17 브릿지: 계절 전환 + 다음 탈것 안내
     const nextVehicle = isLast ? null : VEHICLES[STAGES[this.stageIdx + 1].vehicle].label;
-    this.ui.showClear(
-      { stage: this.stageCfg, revenue: this.stage_.revenue, deliveries: this.stage_.deliveries, isLast, nextVehicle },
+    this.ui.showSettlement(
+      {
+        stage: this.stageCfg,
+        revenue: this.stage_.revenue,
+        fees: this.stage_.fees,
+        net,
+        days: SEASON_DAYS,
+        settlement,
+        debtBefore,
+        debtAfter: this.career.debt,
+        deliveries: this.stage_.deliveries,
+        isLast,
+        nextVehicle,
+      },
       () => (isLast ? this.showEnding() : this.startStage(this.stageIdx + 1)),
     );
   }
@@ -436,9 +471,69 @@ export class Game {
     });
   }
 
+  // §12.4 엔딩 분기: 겨울 정산 후 빚 완납 여부에 따라 해피/배드 엔딩
   showEnding() {
     this.state = 'ending';
-    this.ui.showEnding({ ...this.career, debt: TOTAL_DEBT }, () => this.showTitle());
+    const debtLeft = this.career.debt;
+    this.ui.showEnding(
+      { ...this.career, totalDebt: TOTAL_DEBT, debtLeft },
+      () => this.showTitle(),
+      debtLeft > 0
+        ? () => {
+            // 겨울 재도전: 정산 전 빚으로 복원
+            this.career.debt = this._debtBeforeStage ?? debtLeft;
+            this.ui.clearScreen();
+            this.startStage(STAGES.length - 1);
+          }
+        : null,
+    );
+  }
+
+  // ── 수령 코드 매칭 (FR-24 §12.5) ───────────
+
+  startCodeMatch(d) {
+    if (this.codeMatch) return;
+    const gen = () => {
+      const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+      let s = '';
+      for (let i = 0; i < 6; i++) s += chars[Math.floor(Math.random() * chars.length)];
+      return s;
+    };
+    const codes = new Set([gen()]);
+    while (codes.size < 4) codes.add(gen());
+    const pool = [...codes];
+    const myCode = pool[0];
+    const list = [...pool].sort(() => Math.random() - 0.5);
+    this.codeMatch = { d, correctIdx: list.indexOf(myCode), timeLeft: 3 };
+    this.ui.showCodeMatch(list, myCode);
+    this.audio.play('receipt');
+  }
+
+  updateCodeMatch(dt) {
+    const cm = this.codeMatch;
+    cm.timeLeft -= dt;
+    for (let i = 0; i < 4; i++) {
+      if (this.input.justPressed(`Digit${i + 1}`) || this.input.justPressed(`Numpad${i + 1}`)) {
+        this.resolveCodeMatch(i === cm.correctIdx);
+        return;
+      }
+    }
+    if (cm.timeLeft <= 0) {
+      this.resolveCodeMatch(false); // 미선택 = 오답과 동일 (§12.5)
+      return;
+    }
+    this.ui.updateCodeMatch(cm.timeLeft / 3, Math.ceil(cm.timeLeft));
+  }
+
+  resolveCodeMatch(correct) {
+    const cm = this.codeMatch;
+    this.codeMatch = null;
+    this.ui.hideCodeMatch();
+    this.delivery.confirmPickup(cm.d, correct ? 0 : 5);
+    if (!correct) {
+      this.ui.toast('영수증 불일치! 배달 시간 -5초', 1800);
+      this.audio.play('codeBad');
+    }
   }
 
   // ── 인게임 이벤트 ──────────────────────────
@@ -448,21 +543,30 @@ export class Game {
     this.stage_.hp -= n;
     this.career.hits++;
     this.cam.shake(0.5, 0.35);
-    this.audio.play('hit');
+    this.audio.play(cause === 'crash' ? 'crash' : 'hit');
     if (this.stage_.hp <= 0) this.gameOver('체력이 바닥났다. 병원비가 더 나오게 생겼다…');
   }
 
   onObstacleHit(type) {
     switch (type) {
-      case 'flyer': this.ui.toast('전단지를 받아버렸다… (감속)'); break;
-      case 'kid': this.ui.toast('쿵! 자전거 초딩과 충돌 (-체력, -5초)'); break;
+      case 'flyer':
+        this.ui.toast('전단지를 받아버렸다… (감속)');
+        this.audio.play('flyer'); // §12.6 방해요소 보이스
+        break;
+      case 'kid':
+        this.ui.toast('쿵! 자전거 초딩과 충돌 (-체력, -5초)');
+        this.audio.play('kid');
+        break;
       case 'pigeon':
         this.ui.pigeonFlash();
         this.cam.shake(0.8, 0.5);
         this.ui.toast('푸드덕!! 앞이 안 보인다');
         this.audio.play('pigeon');
         break;
-      case 'drunk': this.ui.toast('취객과 충돌! 조작이 반대로 꼬인다'); break;
+      case 'drunk':
+        this.ui.toast('취객과 충돌! 조작이 반대로 꼬인다');
+        this.audio.play('drunk');
+        break;
     }
   }
 
@@ -486,14 +590,34 @@ export class Game {
       } else {
         this._hadLock = locked;
         this.player.update(dt, this.input, this.cam.yaw);
-        this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle);
+        // 코드 매칭 중엔 1~4·E를 미니게임이 가져간다 (게임 자체는 계속 진행 — §12.5)
+        this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle, { acceptKeys: !this.codeMatch });
+        if (this.codeMatch) this.updateCodeMatch(dt);
         this.obstacles.update(dt);
-        this.updateHUD();
+        // §12.4 스테이지 제한 10분 — 소진 시 정산으로
+        this.stage_.timeLeft -= dt;
+        if (this.stage_.timeLeft <= 0) {
+          this.stage_.timeLeft = 0;
+          this.stageSettle();
+        } else {
+          this.updateHUD();
+        }
       }
     } else if (this.state === 'paused') {
       if (this.input.justPressed('Escape')) this._resumePause?.();
     } else if (this.state === 'gameover') {
       if (this.input.justPressed('KeyR')) this.retry();
+    }
+
+    // FR-20 네비게이션: M 홀드 동안 스마트폰 확대 + 지도 갱신 (게임은 계속 진행)
+    const navOpen = this.state === 'playing' && this.input.down('KeyM');
+    if (navOpen !== this._navOpen) {
+      this._navOpen = navOpen;
+      this.ui.setNav(navOpen);
+    }
+    if (navOpen) {
+      this.navMap.draw(this.ui.navCtx(), this.player, this.delivery.active);
+      this.ui.updateNavLegend(this.delivery.active, DELIVERY_COLORS_CSS);
     }
 
     // 앰비언트 애니메이션: 일시정지 외 상시 (타이틀 배경에도 생활감)
@@ -514,41 +638,36 @@ export class Game {
 
   updateHUD() {
     const d = this.delivery;
-    let timer = null;
-    if (d.phase === DeliveryPhase.CARRY) {
-      timer = {
-        text: `배달까지 ${Math.ceil(d.timeLeft)}초`,
-        ratio: d.timeLeft / d.order.limit,
-        low: d.timeLeft < 8,
-      };
-    } else if (d.phase === DeliveryPhase.PICKUP) {
-      timer = { text: `${d.order.shop.name}에서 픽업`, ratio: 1, low: false };
-    }
     this.ui.updateHUD({
       revenue: this.stage_.revenue,
-      goal: this.stageCfg.goal,
+      fees: this.stage_.fees,
       hp: this.stage_.hp,
       maxHp: MAX_HP,
+      stageTimeLeft: this.stage_.timeLeft,
       stageLabel: `STAGE ${this.stageCfg.id} · ${PALETTES[this.stageCfg.season].name}`,
       vehicleLabel: VEHICLES[this.stageCfg.vehicle].label,
-      timer,
+      offers: d.slots,
+      active: d.active,
+      full: d.active.length >= MAX_ACTIVE,
     });
 
-    const target = d.targetPos();
-    if (target) {
+    // 화살표: 가장 급박한 진행 건 방향 (해당 배달 색)
+    const urgent = d.urgent();
+    if (urgent) {
+      const target = d.targetOf(urgent);
       const worldAngle = Math.atan2(target.x - this.player.pos.x, target.z - this.player.pos.z);
       let rel = worldAngle - this.cam.yaw;
       while (rel > Math.PI) rel -= Math.PI * 2;
       while (rel < -Math.PI) rel += Math.PI * 2;
-      this.ui.setArrow(-rel, true);
-      const dist = this.player.pos.distanceTo(target);
-      if (dist < 4) {
-        this.ui.showHint(d.phase === DeliveryPhase.PICKUP ? '[E] 픽업' : '[E] 전달');
-      } else {
-        this.ui.hideHint();
-      }
+      this.ui.setArrow(-rel, true, DELIVERY_COLORS_CSS[urgent.colorIdx]);
     } else {
       this.ui.setArrow(0, false);
+    }
+
+    const near = d.nearestInteractable();
+    if (near) {
+      this.ui.showHint(near.phase === 'pickup' ? `[E] ${near.shop.name} 픽업` : `[E] ${near.door.name} 전달`);
+    } else {
       this.ui.hideHint();
     }
   }

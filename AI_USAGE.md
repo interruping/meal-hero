@@ -7,7 +7,8 @@
 | 도구 | 사용량 | 잔여/한도 |
 |---|---|---|
 | Meshy.ai | **844 크레딧** (모델 24 + 행인 10×2세대 + 리깅 23 + 애니메이션 25) | 256 / 1,100 (API 실측) |
-| OpenRouter gpt-image-2 | **$0.44** (74장 × low $0.006) | $20 한도 |
+| OpenRouter gpt-image-2 | **$0.44** (74장 × low $0.006) | $20 한도 (gpt-audio와 공유) |
+| OpenRouter gpt-audio-mini | **$0.002** (보이스 4클립, 오디오 출력 601토큰 × $2.4/M) | 〃 |
 
 ## 개발 도구
 
@@ -109,3 +110,20 @@ Chair_Sit_Idle_M(action 33) 애니메이션 **3 크레딧** 추가 (`scripts/mes
 | 소품 `prop-*` | 26 | §7.10 장식 30종의 텍스처 (전봇대·쓰레기봉투·차량·자판기·현수막·고양이 등) |
 | 공용 재질 `shared-*` | 3 | 벽돌담·콘크리트·금속 |
 | 충돌 FX `fx-*` | 2 | 비둘기 화면 충돌 연출 (`scripts/gen-fx.mjs`): 앞유리 스플랫 + 잔류 깃털 스프라이트. 마젠타 배경 생성 후 코너 평균 키잉으로 알파 추출 (2장 × low ≈ $0.012) |
+
+## gpt-audio-mini 보이스 SFX (2026-08-09, FR-25 §12.6)
+
+파이프라인: `scripts/gen-voice.mjs` — OpenRouter `openai/gpt-audio-mini`, chat completions
+`modalities:["text","audio"]` + `stream:true`(오디오 출력 필수 조건) + `audio.format:"pcm16"`
+(스트리밍은 pcm16만 지원) → SSE `delta.audio.data` 조각 조립 → ffmpeg로 mp3 변환 + 무음 트림·5초 캡.
+system 프롬프트로 캐릭터 연기 지시, user 메시지가 대사.
+
+| 파일 | 보이스 | 연출 | 대사 |
+|---|---|---|---|
+| voice-flyer.mp3 | coral | 밝고 씩씩한 전단지 알바생 | "전단지 받아가세요~!" |
+| voice-kid.mp3 | shimmer | 폭주 초등학생 (높고 다급하게) | "따르릉 따르릉! 비켜주세요!!" |
+| voice-drunk.mp3 | ash | 만취 아저씨 웅얼거림 | "어이… 거기 학생…? 같이 한 잔…" |
+| voice-pigeon.mp3 | verse | 비둘기 성대모사 (의성어만) | "구구… 구구!! 푸드드드득!!" |
+
+총 오디오 출력 601토큰 ≈ **$0.0014** (+텍스트 입출력 미미) — 러닝 토탈 $0.44 + $0.002.
+비음성 오디오(BGM 5곡·SFX 13종)는 gpt-audio로 생성 불가 → CC0 외부 에셋 사용 (`CREDITS.md`).
