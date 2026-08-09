@@ -92,7 +92,7 @@ export const LANE_HALF = 1.9; // 차도 반폭 — 차량은 이 안에서만 �
 const WALK_W = ROAD_HALF - LANE_HALF; // 인도 폭 1.1
 export const WALK_MID = LANE_HALF + WALK_W / 2; // 인도 중심선 ±2.45
 
-function roadStrip(cx, cz, w, len, alongZ, texName = 'road-spring', lift = 0.04, vTile = 8) {
+function roadStrip(cx, cz, w, len, alongZ, texName = 'road-spring', lift = 0.04, vTile = 8, uTile = null) {
   const seg = Math.ceil(len / 2);
   const geo = alongZ
     ? new THREE.PlaneGeometry(w, len, 1, seg)
@@ -109,7 +109,7 @@ function roadStrip(cx, cz, w, len, alongZ, texName = 'road-spring', lift = 0.04,
   const uv = geo.attributes.uv;
   for (let i = 0; i < uv.count; i++) {
     const x = pos.getX(i), z = pos.getZ(i);
-    uv.setXY(i, (alongZ ? x : z) / (w), (alongZ ? z : x) / vTile);
+    uv.setXY(i, (alongZ ? x : z) / (uTile ?? w), (alongZ ? z : x) / vTile);
   }
   geo.computeVertexNormals();
   return new THREE.Mesh(geo, new THREE.MeshLambertMaterial({ map: tex(texName) }));
@@ -130,11 +130,13 @@ function buildRoads() {
       sidewalks.add(roadStrip(0, s + side * WALK_MID, WALK_W, MAP_HALF * 2, false, 'sidewalk-spring', 0.07, WALK_W));
     }
   }
-  // §14.2 사방 상가 접근로 (북·남 가로 + 동·서 세로) — 차량 미주행, 전폭 차도 유지
-  roads.add(roadStrip(0, SHOP_Z - 3, 10, 150, false));
-  roads.add(roadStrip(0, -(SHOP_Z - 3), 10, 150, false));
-  roads.add(roadStrip(SHOP_Z - 3, 0, 10, 150, true));
-  roads.add(roadStrip(-(SHOP_Z - 3), 0, 10, 150, true));
+  // §16.1 (FR-38) 외곽 순환 도로 제거 — 접근로 링 대신 상가 앞 보행 프롬나드(보도블럭).
+  // 도로가 아니라 보행 광장: 픽업 지점(전면 4.7m)을 덮는 폭 7 스트립, 상가 군집 구간만
+  const PROM_MID = SHOP_Z + 0.5; // 중심 76.5 → 73~80 커버 (상가 전면 78·픽업 77.3)
+  sidewalks.add(roadStrip(-15, PROM_MID, 7, 78, false, 'sidewalk-spring', 0.05, WALK_W, WALK_W)); // 북
+  sidewalks.add(roadStrip(15, -PROM_MID, 7, 78, false, 'sidewalk-spring', 0.05, WALK_W, WALK_W)); // 남
+  sidewalks.add(roadStrip(PROM_MID, 0, 7, 54, true, 'sidewalk-spring', 0.05, WALK_W, WALK_W)); // 동
+  sidewalks.add(roadStrip(-PROM_MID, 0, 7, 54, true, 'sidewalk-spring', 0.05, WALK_W, WALK_W)); // 서
   return { roads, sidewalks };
 }
 

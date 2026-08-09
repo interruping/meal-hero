@@ -1,18 +1,17 @@
-import { MAP_HALF, STREETS, ROAD_HALF, SHOP_Z } from './citymap.js';
+import { MAP_HALF, STREETS, ROAD_HALF } from './citymap.js';
 import { DELIVERY_COLORS_CSS } from './delivery.js';
 
-// FR-20 네비게이션 지도 (§12.2 + §14.2): 격자 도로망 위 다익스트라 최단 경로.
-// 세로 골목 x∈STREETS (z -85~85), 가로 골목 z∈STREETS (x -85~85),
-// 사방 상가 접근로 x·z=±(SHOP_Z-3) (길이 150 → ±75)
-const EDGE_ROAD = SHOP_Z - 3;
+// FR-20 네비게이션 지도 (§12.2): 격자 도로망 위 다익스트라 최단 경로.
+// 세로 골목 x∈STREETS (z -85~85), 가로 골목 z∈STREETS (x -85~85).
+// §16.1 (FR-38) 외곽 순환 접근로 제거 — 상가는 격자 골목 투영 후 직결 구간으로 안내
 const EXT = MAP_HALF; // 골목 끝
-const lineLimit = (v) => (Math.abs(v) === EDGE_ROAD ? 75 : EXT);
+const lineLimit = () => EXT;
 
 export class NavMap {
   constructor() {
-    // 노드: (세로 골목+동서 접근로) × (가로 골목+남북 접근로) 교차점
-    this.xLines = [...STREETS, -EDGE_ROAD, EDGE_ROAD].sort((a, b) => a - b);
-    this.zLines = [...STREETS, -EDGE_ROAD, EDGE_ROAD].sort((a, b) => a - b);
+    // 노드: 세로 골목 × 가로 골목 교차점
+    this.xLines = [...STREETS];
+    this.zLines = [...STREETS];
     this.nodes = [];
     this.key = (xi, zi) => `${xi},${zi}`;
     this.idx = new Map();
@@ -43,14 +42,14 @@ export class NavMap {
   // 도로망 위 최근접 투영점 + 그 투영점이 놓인 도로의 양끝 이웃 노드
   project(p) {
     let best = null;
-    // 세로 골목 + 동서 접근로
+    // 세로 골목
     for (let xi = 0; xi < this.xLines.length; xi++) {
       const lim = lineLimit(this.xLines[xi]);
       const z = Math.max(-lim, Math.min(lim, p.z));
       const dist = Math.hypot(p.x - this.xLines[xi], p.z - z);
       if (!best || dist < best.dist) best = { dist, x: this.xLines[xi], z, vertical: true, line: xi };
     }
-    // 가로 골목 + 남북 접근로
+    // 가로 골목
     for (let zi = 0; zi < this.zLines.length; zi++) {
       const lim = lineLimit(this.zLines[zi]);
       const x = Math.max(-lim, Math.min(lim, p.x));
@@ -151,19 +150,6 @@ export class NavMap {
       ctx.lineTo(sx(EXT), sy(s));
       ctx.stroke();
     }
-    // 사방 상가 접근로 (§14.2) — 조금 굵게
-    ctx.lineWidth = roadW * 1.6;
-    for (const e of [EDGE_ROAD, -EDGE_ROAD]) {
-      ctx.beginPath();
-      ctx.moveTo(sx(-75), sy(e));
-      ctx.lineTo(sx(75), sy(e));
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(sx(e), sy(-75));
-      ctx.lineTo(sx(e), sy(75));
-      ctx.stroke();
-    }
-
     // 배달 루트 + 목적지 핀 + 남은 시간 (색상별 — §12.2)
     for (const d of active) {
       const color = DELIVERY_COLORS_CSS[d.colorIdx];
