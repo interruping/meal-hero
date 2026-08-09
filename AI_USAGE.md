@@ -6,7 +6,7 @@
 
 | 도구 | 사용량 | 잔여/한도 |
 |---|---|---|
-| Meshy.ai | **844 크레딧** (모델 24 + 행인 10×2세대 + 리깅 23 + 애니메이션 25) | 256 / 1,100 (API 실측) |
+| Meshy.ai | **888 크레딧** (모델 25종 + 행인 10×2세대 + 리깅·애니메이션 + 난간 재시도 30) | 212 / 1,100 (API 실측) |
 | OpenRouter gpt-image-2 | **$0.44** (74장 × low $0.006) | $20 한도 (gpt-audio와 공유) |
 | OpenRouter gpt-audio-mini | **$0.002** (보이스 4클립, 오디오 출력 601토큰 × $2.4/M) | 〃 |
 
@@ -92,6 +92,21 @@ Library 액션 적용(3cr) → 애니메이션 GLB 다운로드 → 256px 축소
 Chair_Sit_Idle_M(action 33) 애니메이션 **3 크레딧** 추가 (`scripts/meshy-anim-hero-sit.mjs`,
 `character-hero-sit.glb`). 라이딩 전용 액션이 라이브러리에 없어 의자 앉기를 쓰되,
 슬라우치 자세는 런타임 스파인 본 보정으로 상체를 펴서 탑승 자세로 변환. 잔액 **242 실측**.
+
+## Meshy 5차 — 계단 난간 3D 교체 (2026-08-09, 피드백)
+
+계단 난간·자전거 거치대가 `prop-railing.png` 텍스처 입힌 얇은 박스라 기둥이 평면으로
+보인다는 피드백 — `prop3d-railing.glb`로 교체 (`scripts/meshy-railing*.mjs`).
+
+| 항목 | 크레딧 | 비고 |
+|---|---|---|
+| 1차 preview+refine | 15 | 실패 — "posts and pipe bars" 프롬프트가 파이프 구조물로 생성됨 |
+| 2차 preview | 5 | "all aligned in one single flat vertical plane" 제약 추가 — 정상 펜스 패널 |
+| 2차 refine (2k) | 10 | 채택. 배치는 `props.js`에서 계단 양측 타일링 + 거치대 0.7배 재활용 |
+
+5차 소계: **30 크레딧**. 잔액 **212 실측**. 교훈: 얇은 격자류(펜스·난간)는 text-to-3d가
+취약 — "single flat vertical plane" 같은 평면 제약을 명시하고, refine 전에 preview
+썸네일을 검수해 불량이면 refine 10cr을 아낄 것. `texture_resolution`은 1k 불가(2k/4k/8k만).
 
 ## gpt-image-2 생성 텍스처 (2026-08-09)
 

@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { terrainHeight } from './heightfield.js';
 import { tex, sharedMat } from './textures.js';
-import { STREETS, ROAD_HALF, SHOP_Z, MAP_HALF } from './citymap.js';
+import { STREETS, ROAD_HALF, SHOP_Z, MAP_HALF, STAIR_PASSAGES } from './citymap.js';
 
 // §7.10 장식 오브젝트 30종+ 배치. 전부 gpt-image-2 텍스처 사용 (단색 금지).
 // 반환: { group, seasonalTreeMats, typeCount }
@@ -198,8 +198,30 @@ export function buildProps(world, scene, M) {
     add('담벼락', wall, true);
   }
 
-  // ── 11 계단 난간: citymap 계단부에 포함 ──
-  typeSet.add('계단난간');
+  // ── 11 계단 난간 (Meshy 3D — 계단 양측 타일링) ──
+  {
+    const pb = new THREE.Box3().setFromObject(M.railing);
+    const ps = pb.getSize(new THREE.Vector3());
+    const alongX = ps.x >= ps.z; // 모델 장축 판별
+    const unit = Math.max(ps.x, ps.z);
+    for (const s of STAIR_PASSAGES) {
+      const zMin = Math.min(s.z0, s.z1) + 1.6; // 볼라드 자리 비움
+      const span = Math.abs(s.z1 - s.z0) - 3.2;
+      const n = Math.max(1, Math.round(span / unit));
+      const step = span / n;
+      for (const off of [-1.35, 1.35]) {
+        for (let i = 0; i < n; i++) {
+          const z = zMin + (i + 0.5) * step;
+          const m = M.railing.clone(true);
+          m.position.set(s.x + off, H(s.x + off, z), z);
+          m.rotation.y = alongX ? Math.PI / 2 : 0; // 장축을 계단 진행축(z)에 정렬
+          const stretch = step / unit;
+          if (alongX) m.scale.x *= stretch; else m.scale.z *= stretch;
+          add('계단난간', m);
+        }
+      }
+    }
+  }
 
   // ── 12 돌출 간판 (상가 측면) — 넓은 양면만 간판, 나머지 금속 ──
   const signMat = sharedMat('prop-sign-vertical');
@@ -298,16 +320,19 @@ export function buildProps(world, scene, M) {
     }
   }
 
-  // ── 24 자전거 거치대 ──
-  const rackMat = sharedMat('prop-railing', { repeatX: 2, repeatY: 0.4 });
-  for (let i = 0; i < 3; i++) {
-    const x = -40 + i * 40;
-    const z = SHOP_Z - 11.5;
-    const y = H(x, z);
-    for (let k = 0; k < 4; k++) {
-      const r = box(0.06, 0.75, 0.9, rackMat);
-      r.position.set(x + k * 0.5, y + 0.37, z);
-      add('자전거거치대', r);
+  // ── 24 자전거 거치대 (난간 3D 모델 축소 재활용) ──
+  {
+    const rb = new THREE.Box3().setFromObject(M.railing);
+    const rs = rb.getSize(new THREE.Vector3());
+    const rAlongX = rs.x >= rs.z;
+    for (let i = 0; i < 3; i++) {
+      const x = -40 + i * 40;
+      const z = SHOP_Z - 11.5;
+      const m = M.railing.clone(true);
+      m.scale.multiplyScalar(0.7);
+      m.position.set(x, H(x, z), z);
+      m.rotation.y = rAlongX ? 0 : Math.PI / 2; // 장축을 x축(상가 평행)으로
+      add('자전거거치대', m);
     }
   }
 
