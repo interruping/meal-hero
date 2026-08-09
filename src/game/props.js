@@ -414,16 +414,40 @@ export function buildProps(world, scene, M) {
     }
   }
 
-  // ── 30 상가 어닝 (차양) ──
-  const awningMat = sharedMat('prop-parasol', { repeatX: 2, repeatY: 1 });
-  for (let i = 0; i < 10; i += 2) {
-    const sx = -67 + i * 15;
-    const sz = SHOP_Z + 1.2;
-    const y = H(sx, sz);
-    const a = box(6, 0.12, 1.6, awningMat);
-    a.position.set(sx, y + 3.1, sz);
-    a.rotation.x = 0.25;
-    add('어닝', a);
+  // ── 30 어린이보호구역 표지판 (구 어닝은 간판 하단 떠 있음 피드백으로 제거) ──
+  const signFaceMat = new THREE.MeshLambertMaterial({
+    map: tex('prop-sign-schoolzone'), side: THREE.DoubleSide,
+  });
+  // 후보 중 건물·소품과 안 겹치는 자리만 채택.
+  // 계단 샛길 ±7m는 빌라 생성이 스킵되는 확정 공터라 갓길 가시성이 보장됨
+  // [x, z, yaw] — yaw는 앞면이 인접 도로를 향하게
+  const signCandidates = [
+    [19.2, -62.2, Math.PI], [13.8, -36.8, 0], [-46.8, 4.0, Math.PI],
+    [25, -36.6, 0], [-58, -29.4, Math.PI], [37, 36.6, Math.PI],
+  ];
+  let signsPlaced = 0;
+  for (const [px, pz, yaw] of signCandidates) {
+    if (signsPlaced >= 3) break;
+    const y = H(px, pz);
+    const b = new THREE.Box3(
+      new THREE.Vector3(px - 0.5, y, pz - 0.5),
+      new THREE.Vector3(px + 0.5, y + 2.6, pz + 0.5),
+    );
+    if (overlapsAny(b, 1.0)) continue;
+    const pole = cyl(0.05, 2.6, metalMat, 6);
+    pole.position.set(px, y + 1.3, pz);
+    add('표지판', pole);
+    const face = plane(0.8, 0.8, signFaceMat);
+    // 기둥과 z-파이팅·겹침 방지 — 앞면 방향으로 살짝 밀착
+    face.position.set(px + 0.07 * Math.sin(yaw), y + 2.2, pz + 0.07 * Math.cos(yaw));
+    face.rotation.y = yaw;
+    add('표지판', face);
+    colliders.push({
+      minX: px - 0.1, maxX: px + 0.1,
+      minY: y, maxY: y + 2.6,
+      minZ: pz - 0.1, maxZ: pz + 0.1,
+    });
+    signsPlaced++;
   }
 
   scene.add(group);
