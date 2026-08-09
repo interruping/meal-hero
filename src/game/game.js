@@ -143,6 +143,9 @@ export class Game {
         const sitAsset = await loadAnimated('character-hero-sit', 1.6);
         const sit = inst.mixer.clipAction(sitAsset.clips[0]);
         sit.play(); sit.setEffectiveWeight(0);
+        // Chair_Sit 루프는 앞으로 깊이 숙이는 스웨이 포함 — 가장 곧은 프레임(9.36s)에
+        // 고정해 탑승 정자세로 쓴다 (전 구간 피치 실측 0.20~1.37rad, 최소가 9.36)
+        sit.time = 9.36; sit.paused = true;
         this.heroAnim.sit = sit;
       } catch { /* 폴백: idle */ }
       this.heroVisual = inst.model;
@@ -292,8 +295,8 @@ export class Game {
       // 탑승 자세: 킥보드는 발판에 서고, 자전거·스쿠터는 안장 착좌 (앉기 클립과 세트 튜닝)
       const pose = {
         kickboard: { y: 0.14, z: -0.05, rx: 0 },
-        bicycle: { y: 0.24, z: 0, rx: -0.06 },
-        scooter: { y: 0.17, z: -0.16, rx: -0.06 },
+        bicycle: { y: 0.24, z: 0.1, rx: -0.06 },
+        scooter: { y: 0.17, z: -0.04, rx: -0.06 },
       }[vehicleKey];
       hero.position.set(0, pose.y, pose.z);
       hero.rotation.x = pose.rx;
@@ -341,17 +344,6 @@ export class Game {
     a.idle.setEffectiveWeight(Math.max(0, 1 - rw - sw));
     a.run.timeScale = 0.55 + (speed2D / p.vehicle.maxSpeed) * 0.75;
     a.mixer.update(dt);
-    // Chair_Sit 클립은 팔꿈치-무릎 슬라우치라 탑승 자세로 상체를 펴준다 (mixer 이후 매 프레임)
-    if (sw > 0.01) {
-      if (this._spineBones === undefined) {
-        const found = {};
-        a.model.traverse((o) => { if (o.isBone) found[o.name] = o; });
-        this._spineBones = ['Spine', 'Spine01', 'Spine02', 'neck'].every((n) => found[n])
-          ? [[found.Spine, 0.13], [found.Spine01, 0.13], [found.Spine02, 0.13], [found.neck, 0.06]]
-          : null;
-      }
-      if (this._spineBones) for (const [b, amt] of this._spineBones) b.rotation.x -= amt * sw;
-    }
   }
 
   applySeason(key) {
