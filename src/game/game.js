@@ -413,7 +413,11 @@ export class Game {
       this.peds?.update(dt);
     }
 
-    this.cam.update(dt, this.input, this.player.pos);
+    this.cam.update(dt, this.input, this.player.pos, {
+      heading: this.player.heading,
+      moving: this.state === 'playing'
+        && Math.hypot(this.player.vel.x, this.player.vel.z) > 1,
+    });
     this.retro.render(this.scene, this.cam.camera);
     this.input.endFrame();
   }

@@ -125,6 +125,62 @@ export function applyHeadRatio(wrapper, targetFrac, targetHeight) {
   inst.position.set(-center.x * scale, -box2.min.y * scale, -center.z * scale);
 }
 
+// 정적(비리깅) 모델 머리 확대 — 상단 startFrac 위 버텍스를 머리 중심 기준으로 키워
+// 가분수 비율을 강화한다 (본 없는 GLB용, 지오메트리 제자리 수정 → 클론·아웃라인 공유 안전).
+// 목/어깨 경계는 blend 구간으로 부드럽게 이어 크리스 방지. 확대 후 높이 재정규화.
+export function inflateHead(wrapper, factor, startFrac, targetHeight) {
+  wrapper.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(wrapper);
+  const height = box.max.y - box.min.y;
+  const neckY = box.min.y + height * startFrac;
+  const blend = height * 0.08;
+  // 머리 중심 = 목 위 버텍스 평균 (wrapper 공간)
+  const center = new THREE.Vector3();
+  let count = 0;
+  const v = new THREE.Vector3();
+  const seen = new Set();
+  wrapper.traverse((o) => {
+    if (!o.isMesh || seen.has(o.geometry)) return;
+    const pos = o.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      if (v.y > neckY) { center.add(v); count++; }
+    }
+  });
+  if (!count) return;
+  center.divideScalar(count);
+  const inv = new THREE.Matrix4();
+  wrapper.traverse((o) => {
+    if (!o.isMesh || seen.has(o.geometry)) return;
+    seen.add(o.geometry);
+    inv.copy(o.matrixWorld).invert();
+    const pos = o.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld);
+      const t = Math.min(1, Math.max(0, (v.y - neckY) / blend));
+      const w = t * t * (3 - 2 * t); // smoothstep
+      if (w > 0) {
+        v.sub(center).multiplyScalar(1 + (factor - 1) * w).add(center);
+        v.applyMatrix4(inv);
+        pos.setXYZ(i, v.x, v.y, v.z);
+      }
+    }
+    pos.needsUpdate = true;
+    o.geometry.computeBoundingSphere();
+  });
+  // 커진 머리만큼 전체 높이 재정규화 + 발밑 재접지
+  const inst = wrapper.children[0];
+  const box2 = new THREE.Box3().setFromObject(wrapper);
+  const s = targetHeight / (box2.max.y - box2.min.y || 1);
+  inst.scale.multiplyScalar(s);
+  wrapper.updateMatrixWorld(true);
+  const box3 = new THREE.Box3().setFromObject(wrapper);
+  const c = box3.getCenter(new THREE.Vector3());
+  inst.position.x -= c.x;
+  inst.position.z -= c.z;
+  inst.position.y -= box3.min.y;
+}
+
 // 스킨드 메시용 실루엣 아웃라인 — 본을 따라가는 인버티드 헐 (정적 헐은 애니메이션에 못 씀)
 export function addSkinnedOutline(root, thickness = 0.02) {
   const targets = [];
