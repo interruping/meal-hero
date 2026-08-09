@@ -8,7 +8,7 @@ const cache = new Map();
 
 export const ASSET_BASE = import.meta.env.BASE_URL;
 // GLB 갱신 시 브라우저가 구버전 캐시를 계속 쓰는 문제 방지 — 에셋 수정 시 올릴 것
-const MODEL_V = '?v=5';
+const MODEL_V = '?v=6';
 
 function prepare(root) {
   root.traverse((o) => {
