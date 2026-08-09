@@ -24,6 +24,14 @@ class FlyerWorker {
     this.windup = 0; // 던지기 직전 젖히기 연출
     this.chaseTime = 0; // 이번 추적 누적 시간 (최대 10초)
     this.rested = true; // 추적 소진 후 홈 복귀해야 재추적 가능
+    this.chaseCooldownUntil = 0; // 전단지 명중 시 추적 쿨타임
+  }
+
+  // 던진 전단지가 주인공에게 명중 — 추적 중단 + 5초 쿨타임
+  onPaperHit() {
+    this.chaseCooldownUntil = this.time + 5;
+    this.chaseTime = 0;
+    this.rested = true;
   }
 
   update(dt, player) {
@@ -31,8 +39,8 @@ class FlyerWorker {
     this.throwCooldown -= dt;
     const d = player.pos.distanceTo(this.pos);
 
-    // 추적: 5m 안에서 발견하면 1m 거리까지 따라붙음, 최대 10초
-    const chasing = this.rested
+    // 추적: 5m 안에서 발견하면 1m 거리까지 따라붙음, 최대 10초 (명중 후 5초는 쉼)
+    const chasing = this.rested && this.time >= this.chaseCooldownUntil
       ? d < 5 && this.chaseTime < 10
       : false;
     if (chasing) {
@@ -70,7 +78,7 @@ class FlyerWorker {
         origin.y += 1.35;
         origin.x += Math.sin(this.model.rotation.y) * 0.45;
         origin.z += Math.cos(this.model.rotation.y) * 0.45;
-        this.throwPaper(origin, player);
+        this.throwPaper(origin, player, this);
       }
       // 던지는 모션: 몸 젖혔다 앞으로 확
       this.windup = Math.max(0, this.windup - dt);
@@ -101,9 +109,10 @@ class PaperPool {
     });
   }
 
-  throwAt(origin, player) {
+  throwAt(origin, player, owner = null) {
     const p = this.papers.find((x) => x.life <= 0);
     if (!p) return;
+    p.owner = owner; // 명중 시 던진 알바생에게 통지 (추적 쿨타임)
     // 예측 조준 + 약간 위로 아치
     const target = player.pos.clone().addScaledVector(player.vel, 0.25);
     target.y += 1.1;
@@ -136,6 +145,7 @@ class PaperPool {
         p.mesh.visible = false;
         player.applySlowdown(1.6);
         player.applyPaperHit(p.vel);
+        p.owner?.onPaperHit();
         this.game.onObstacleHit('flyer', {});
       }
       if (p.life <= 0) p.mesh.visible = false;
@@ -400,7 +410,7 @@ export class ObstacleManager {
       for (const p of spots) {
         const m = this.protoFlyer.clone(true);
         this.group.add(m);
-        this.flyers.push(new FlyerWorker(m, p, this.game, (o, pl) => this.paperPool.throwAt(o, pl)));
+        this.flyers.push(new FlyerWorker(m, p, this.game, (o, pl, w) => this.paperPool.throwAt(o, pl, w)));
       }
       this.introBanner('flyer');
     }
