@@ -27,7 +27,7 @@ export class Pedestrians {
     const assets = [];
     for (const n of PED_NAMES) {
       try {
-        assets.push(await loadAnimated(`${n}-walk`, 1.5 + Math.random() * 0.12));
+        assets.push(await loadAnimated(`${n}-walk`, 1.38 + Math.random() * 0.14));
       } catch {
         // 아직 생성 안 된 모델은 건너뜀 — 배치 완료 후 자동 포함
       }
@@ -51,15 +51,34 @@ export class Pedestrians {
     action.timeScale = 0.85 + Math.random() * 0.35;
     const w = {
       model, mixer,
-      axis: Math.random() < 0.5 ? 'x' : 'z',           // 이동 축
-      line: STREETS[Math.floor(Math.random() * STREETS.length)], // 걷는 골목
-      lateral: (Math.random() < 0.5 ? -1 : 1) * (ROAD_HALF - 0.7),
-      t: -LIMIT + Math.random() * LIMIT * 2,           // 골목 위 위치
+      axis: 'z', line: 0, lateral: ROAD_HALF - 0.7, t: 0,
       dir: Math.random() < 0.5 ? -1 : 1,
       speed: 1.15 + Math.random() * 0.5,
       yaw: 0,
       nextCross: null,
     };
+    // 산발 스폰: 다른 행인들과 가장 멀리 떨어지는 후보 선택 (한곳 몰림 방지)
+    let best = null, bestD = -1;
+    for (let attempt = 0; attempt < 16; attempt++) {
+      const cand = {
+        axis: Math.random() < 0.5 ? 'x' : 'z',
+        line: STREETS[Math.floor(Math.random() * STREETS.length)],
+        lateral: (Math.random() < 0.5 ? -1 : 1) * (ROAD_HALF - 0.7),
+        t: -LIMIT + Math.random() * LIMIT * 2,
+      };
+      const x = cand.axis === 'z' ? cand.line + cand.lateral : cand.t;
+      const z = cand.axis === 'z' ? cand.t : cand.line + cand.lateral;
+      if (this.blocked(x, z)) continue;
+      let dMin = Infinity;
+      for (const o of this.walkers) {
+        const dx = o.model.position.x - x;
+        const dz = o.model.position.z - z;
+        dMin = Math.min(dMin, dx * dx + dz * dz);
+      }
+      if (dMin > bestD) { bestD = dMin; best = cand; }
+      if (dMin > 20 * 20) break; // 충분히 멀면 즉시 채택
+    }
+    if (best) Object.assign(w, best);
     this.place(w);
     w.model.rotation.y = w.yaw = this.targetYaw(w);
     this.group.add(model);

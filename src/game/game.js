@@ -248,6 +248,27 @@ export class Game {
     }
   }
 
+  // 피격 빨간 점멸 — 주인공 재질 emissive 깜빡임
+  updateHitFlash() {
+    const p = this.player;
+    const hero = this.heroVisual ?? this.models.hero;
+    if (!this._heroMats) {
+      this._heroMats = [];
+      hero.traverse((o) => {
+        if (!o.isMesh && !o.isSkinnedMesh) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (m && m.emissive) this._heroMats.push(m);
+        }
+      });
+    }
+    const flashing = p.time < (p.flashUntil ?? 0);
+    const on = flashing && Math.floor((p.flashUntil - p.time) * 14) % 2 === 0;
+    if (on !== this._flashOn) {
+      this._flashOn = on;
+      for (const m of this._heroMats) m.emissive.setHex(on ? 0xcc1111 : 0x000000);
+    }
+  }
+
   // 스켈레톤 달리기·대기 크로스페이드 — 속도 비례 가중치/재생속도
   updateHeroAnim(dt) {
     const a = this.heroAnim;
@@ -388,6 +409,7 @@ export class Game {
     // 앰비언트 애니메이션: 일시정지 외 상시 (타이틀 배경에도 생활감)
     if (this.state !== 'paused') {
       this.updateHeroAnim(dt);
+      this.updateHitFlash();
       this.peds?.update(dt);
     }
 

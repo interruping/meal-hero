@@ -193,6 +193,15 @@ export class Player {
   }
 
   applySlowdown(seconds) { this.speedPenaltyUntil = this.time + seconds; }
+
+  // 전단지 피격: 날아온 방향 그대로 밀려남(맞은 방향 반대) + 잠깐 조작 불능 + 빨간 점멸
+  applyPaperHit(vel) {
+    const len = Math.hypot(vel.x, vel.z) || 1;
+    this.stunnedUntil = this.time + 0.55; // applyStun과 달리 넉백 속도를 살린다
+    this.vel.x = (vel.x / len) * 4.2;
+    this.vel.z = (vel.z / len) * 4.2;
+    this.flashUntil = this.time + 0.45;
+  }
   applyReverse(seconds) { this.controlsReversedUntil = this.time + seconds; }
   applyStun(seconds) {
     this.stunnedUntil = this.time + seconds;
