@@ -8,7 +8,10 @@ const CSS = `
   src: url('fonts/Galmuri11.woff2') format('woff2');
   font-display: swap;
 }
-#ui { position: absolute; inset: 0; pointer-events: none; font-family: 'Galmuri11', monospace;
+/* §15.2 (FR-34): #ui는 뷰포트가 아니라 캔버스(16:9 레터박스) rect에 동기화 —
+   초광폭 모니터에서도 HUD가 그래픽 드로우 영역 안에 머문다 (syncRect) */
+#ui { position: absolute; left: 0; top: 0; width: 100%; height: 100%;
+  pointer-events: none; font-family: 'Galmuri11', monospace;
   color: #3a3a38; user-select: none; overflow: hidden; }
 #ui * { box-sizing: border-box; }
 .mh-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
@@ -98,12 +101,14 @@ const CSS = `
 .active-row.low .a-sec { color: #b5372f; font-weight: bold; }
 #hud-hint { bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 19px; display: none;
   background: #3a3a38; color: #efeeea; border-color: #efeeea; }
-/* §14.1 좌측 하단 스킬 UI: 대시 쿨타임 게이지 + 에너지 드링크 키·가격 안내 */
+/* §14.1+§15.2 좌측 하단 스킬 UI: 대시 쿨타임 게이지 + 에너지 드링크 키·가격 안내.
+   아이콘은 SVG (FR-34 — 이모지 금지) */
 #hud-skills { position: absolute; bottom: 54px; left: 12px; display: flex; gap: 6px; }
-.skill-box { width: 86px; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
-  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); padding: 5px 4px 4px; font-size: 12px;
-  text-align: center; line-height: 1.45; position: relative; overflow: hidden; }
-.skill-box .s-icon { font-size: 19px; display: block; }
+.skill-box { width: 96px; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
+  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); padding: 6px 4px 5px; font-size: 12px;
+  text-align: center; line-height: 1.5; position: relative; overflow: hidden; }
+.skill-box .s-icon { display: block; height: 30px; margin: 0 auto 2px; }
+.skill-box .s-icon svg { width: 30px; height: 30px; display: block; margin: 0 auto; }
 .skill-box .s-key { display: inline-block; background: #3a3a38; color: #efeeea;
   padding: 0 5px; font-size: 11px; }
 .skill-box .s-cd { position: absolute; left: 0; bottom: 0; width: 100%; height: 0%;
@@ -213,12 +218,23 @@ export class UI {
         <div id="hud-stage" class="hud-panel"></div>
         <div id="hud-skills">
           <div class="skill-box" id="skill-dash">
-            <span class="s-icon">💨</span>
+            <span class="s-icon"><svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M2.5 4.5 L11 12 L2.5 19.5 V15 L6 12 L2.5 9 Z" fill="#4f6d8f" stroke="#26262a" stroke-width="1"/>
+              <path d="M11.5 4.5 L20 12 L11.5 19.5 V15 L15 12 L11.5 9 Z" fill="#b5372f" stroke="#26262a" stroke-width="1"/>
+              <rect x="20.5" y="7" width="2.5" height="2" fill="#4f6d8f"/>
+              <rect x="20.5" y="11" width="2.5" height="2" fill="#b5372f"/>
+              <rect x="20.5" y="15" width="2.5" height="2" fill="#4f6d8f"/>
+            </svg></span>
             <span class="s-key">Shift</span> 대시
             <div class="s-cd"></div>
           </div>
           <div class="skill-box" id="skill-drink">
-            <span class="s-icon">🥤</span>
+            <span class="s-icon"><svg viewBox="0 0 24 24" aria-hidden="true">
+              <rect x="7" y="5.5" width="10" height="15.5" rx="1.5" fill="#b5372f" stroke="#26262a" stroke-width="1"/>
+              <rect x="7.6" y="3" width="8.8" height="2.6" fill="#c6c2b4" stroke="#26262a" stroke-width="1"/>
+              <rect x="10" y="1.6" width="4" height="1.6" fill="#8a8a86"/>
+              <path d="M13.6 7.5 L9.6 13.2 H12 L10.6 19 L15.2 12 H12.6 Z" fill="#c9a13b" stroke="#26262a" stroke-width="0.7"/>
+            </svg></span>
             <span class="s-key">Q</span> ₩1,500
             <div class="s-cd"></div>
           </div>
@@ -252,6 +268,21 @@ export class UI {
     this.el = (id) => this.root.querySelector(id);
     this.bannerTimeout = null;
     this.toastTimeout = null;
+
+    // §15.2 (FR-34): 렌더 캔버스는 16:9 레터박스 — #ui를 캔버스 rect에 맞춰
+    // 모든 HUD가 그래픽 드로우 영역 안에 위치하게 한다.
+    // RetroRenderer의 resize 리스너가 먼저 등록되어 있어 캔버스 갱신 후 실행됨
+    this.container = container;
+    this._syncRect = () => {
+      const c = container.querySelector(':scope > canvas');
+      if (!c) return;
+      this.root.style.left = `${c.offsetLeft}px`;
+      this.root.style.top = `${c.offsetTop}px`;
+      this.root.style.width = `${c.offsetWidth}px`;
+      this.root.style.height = `${c.offsetHeight}px`;
+    };
+    window.addEventListener('resize', this._syncRect);
+    this._syncRect();
   }
 
   clearScreen() { this.holder.innerHTML = ''; }
