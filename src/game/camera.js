@@ -15,6 +15,8 @@ export class FollowCamera {
     this.initialized = false;
     this.shakeAmp = 0;
     this.shakeTime = 0;
+    this._manualT = 999; // 마지막 수동 시점 조작 후 경과 시간
+    this._syncT = 0; // 헤딩 자동 동기화 대기 누적 (500ms 딜레이)
   }
 
   shake(intensity, duration) {
@@ -22,10 +24,33 @@ export class FollowCamera {
     this.shakeTime = Math.max(this.shakeTime, duration);
   }
 
-  update(dt, input, targetPos) {
+  update(dt, input, targetPos, follow = null) {
     const m = input.consumeMouse();
     this.yaw -= m.x * 0.0025;
     this.pitch = Math.min(Math.max(this.pitch + m.y * 0.0018, -0.05), 0.55);
+
+    // 포인터록 폴백: 커서가 화면 가장자리에 닿아 있으면 그 방향으로 계속 회전
+    const push = input.edgePush ? input.edgePush() : { x: 0, y: 0 };
+    this.yaw -= push.x * 2.4 * dt;
+    this.pitch = Math.min(Math.max(this.pitch + push.y * 1.1 * dt, -0.05), 0.55);
+
+    // 캐릭터 진행 방향 자동 동기화 — 방향 전환 후 500ms 딜레이 두고 부드럽게 수렴.
+    // 수동 조작 직후엔 유저 의도 우선 (잠시 보류)
+    if (m.x || m.y || push.x || push.y) this._manualT = 0;
+    else this._manualT += dt;
+    if (follow && follow.moving && this._manualT > 0.15) {
+      let hd = follow.heading - this.yaw;
+      while (hd > Math.PI) hd -= Math.PI * 2;
+      while (hd < -Math.PI) hd += Math.PI * 2;
+      if (Math.abs(hd) > 0.03) {
+        this._syncT += dt;
+        if (this._syncT > 0.5) this.yaw += hd * (1 - Math.exp(-3 * dt));
+      } else {
+        this._syncT = 0;
+      }
+    } else {
+      this._syncT = 0;
+    }
 
     const behind = new THREE.Vector3(
       Math.sin(this.yaw) * -this.dist * Math.cos(this.pitch),
