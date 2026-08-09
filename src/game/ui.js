@@ -12,7 +12,8 @@ const CSS = `
   color: #3a3a38; user-select: none; overflow: hidden; }
 #ui * { box-sizing: border-box; }
 .mh-screen { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: 18px; pointer-events: auto; background: rgba(58,58,56,0.55); text-align: center; }
+  justify-content: center; gap: 18px; pointer-events: auto; background: rgba(58,58,56,0.55); text-align: center;
+  z-index: 9; /* 튜토리얼 하이라이트(z6)·코드매칭(z8)보다 위 — 일시정지 등 전체 화면 우선 */ }
 .mh-panel { background: #efeeea; border: 3px solid #3a3a38; box-shadow: 6px 6px 0 rgba(58,58,56,0.5);
   padding: 22px 30px; max-width: 560px; image-rendering: pixelated; }
 .mh-title { font-size: 44px; letter-spacing: 4px; margin: 0; color: #3a3a38; }
@@ -24,6 +25,17 @@ const CSS = `
 .mh-controls { font-size: 15px; line-height: 1.9; color: #4a4a46; text-align: left; display: inline-block; }
 .mh-caption { font-size: 22px; line-height: 1.8; }
 .mh-hint { font-size: 14px; color: #7a7a76; }
+/* §14.6 튜토리얼 (FR-32): 배경 디밍 + 대상 UI 테두리 강조 + 안내 패널 */
+#tut-dim { position: absolute; inset: 0; background: rgba(38,38,42,0.35); display: none;
+  z-index: 5; pointer-events: none; }
+.tut-glow { z-index: 6 !important; outline: 3px solid #c9a13b; outline-offset: 3px;
+  animation: tut-pulse 1s ease-in-out infinite; }
+@keyframes tut-pulse { 0%, 100% { outline-color: #c9a13b; } 50% { outline-color: #efeeea; } }
+#tut-panel { position: absolute; top: 33%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 6; background: #efeeea; border: 3px solid #3a3a38; padding: 12px 24px;
+  box-shadow: 4px 4px 0 rgba(58,58,56,0.5); font-size: 17px; display: none;
+  text-align: center; max-width: 480px; line-height: 1.7; }
+#tut-panel .t-step { font-size: 12px; color: #b5372f; margin-bottom: 4px; }
 /* §14.5 오프닝: 주인공 모델 + 타자기 대사 */
 .op-row { display: flex; gap: 16px; align-items: center; text-align: left; }
 .op-hero { flex: none; width: 150px; height: 150px; background: #d8d5cb;
@@ -220,6 +232,8 @@ export class UI {
           <canvas class="np-map" width="320" height="380"></canvas>
           <div class="np-legend"></div>
         </div>
+        <div id="tut-dim"></div>
+        <div id="tut-panel"></div>
         <div id="codematch">
           <div class="cm-msg"></div>
           <div class="cm-bar"><i></i></div>
@@ -417,6 +431,38 @@ export class UI {
     `);
     s.querySelector('#btn-title').addEventListener('click', onTitle);
     if (onRetryWinter) s.querySelector('#btn-retry-winter').addEventListener('click', onRetryWinter);
+  }
+
+  // §14.6 튜토리얼 제안 (FR-32)
+  showTutorialAsk({ onYes, onNo }) {
+    const s = this.screen(`
+      <div class="mh-panel">
+        <div class="mh-caption">튜토리얼을 할까요?</div>
+        <div class="mh-sub" style="margin:8px 0">배달 수락부터 전달까지 4단계로 안내합니다 (진행 중 타이머 정지)</div>
+        <div style="margin-top:14px">
+          <button class="mh-btn" id="btn-tut-yes">예, 배워볼게요</button>
+          <button class="mh-btn" id="btn-tut-no">아니오, 바로 시작</button>
+        </div>
+      </div>
+    `);
+    s.querySelector('#btn-tut-yes').addEventListener('click', onYes);
+    s.querySelector('#btn-tut-no').addEventListener('click', onNo);
+  }
+
+  // step=null이면 튜토리얼 UI 전부 해제
+  tutorialGuide(step, text = '', targetSel = null) {
+    this.root.querySelectorAll('.tut-glow').forEach((el) => el.classList.remove('tut-glow'));
+    const dim = this.el('#tut-dim');
+    const panel = this.el('#tut-panel');
+    if (step == null) {
+      dim.style.display = 'none';
+      panel.style.display = 'none';
+      return;
+    }
+    dim.style.display = 'block';
+    panel.style.display = 'block';
+    panel.innerHTML = `<div class="t-step">튜토리얼 ${step + 1} / 4</div>${text}`;
+    if (targetSel) this.root.querySelector(targetSel)?.classList.add('tut-glow');
   }
 
   showPause({ onResume, onRestart, onMenu }) {

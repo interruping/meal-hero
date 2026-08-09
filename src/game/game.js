@@ -258,6 +258,8 @@ export class Game {
     this.stageCfg = STAGES[idx];
     this.stage_ = { revenue: 0, fees: 0, deliveries: 0, hp: MAX_HP, timeLeft: STAGE_TIME };
     this.codeMatch = null;
+    this.tutorial = null; // §14.6 재시작·재진입 시 튜토리얼 상태 해제
+    this.ui.tutorialGuide(null);
     this.ui.hideCodeMatch();
     this.applySeason(this.stageCfg.season);
     this.player.setVehicle(this.stageCfg.vehicle);
@@ -284,12 +286,25 @@ export class Game {
     }
     this.ui.showStageIntro(this.stageCfg, VEHICLES[this.stageCfg.vehicle].label, this.career.debt, () => {
       this.modelView?.stop();
-      this.ui.clearScreen();
-      this.state = 'playing';
-      this.ui.setHudVisible(true);
-      this.input.requestPointerLock();
-      this.audio.startBGM(this.stageCfg.season);
+      // §14.6 튜토리얼 제안 (FR-32): 오프닝 경유 첫 시작 + 봄 스테이지에서만
+      if (this._offerTutorial && idx === 0) {
+        this._offerTutorial = false;
+        this.ui.showTutorialAsk({
+          onYes: () => { this.beginPlay(); this.startTutorial(); },
+          onNo: () => this.beginPlay(),
+        });
+      } else {
+        this.beginPlay();
+      }
     }, obstacleIntro);
+  }
+
+  beginPlay() {
+    this.ui.clearScreen();
+    this.state = 'playing';
+    this.ui.setHudVisible(true);
+    this.input.requestPointerLock();
+    this.audio.startBGM(this.stageCfg.season);
   }
 
   // 배달가방을 히어로 가슴 본에 부착 — 정적 부착은 두리번·달리기 애니메이션과
@@ -512,6 +527,41 @@ export class Game {
     );
   }
 
+  // ── 튜토리얼 (FR-32 §14.6) ─────────────────
+  // 4단계: 수락(1~4) → 픽업(E+코드) → 네비(M 홀드) → 전달(E).
+  // 실제 조작 수행을 감지해 다음 단계로. 진행 중 스테이지·의뢰 타이머 정지
+
+  startTutorial() {
+    this.tutorial = { step: 0, mHold: 0 };
+    this.ui.tutorialGuide(0,
+      '상단 의뢰 슬롯에서 <b>[1~4]</b> 키를 눌러<br>배달 의뢰를 수락해보세요', '#hud-offers');
+  }
+
+  updateTutorial(dt) {
+    const t = this.tutorial;
+    const d = this.delivery;
+    if (t.step === 0 && d.active.length > 0) {
+      t.step = 1;
+      this.ui.tutorialGuide(1,
+        '화살표를 따라 가게 앞에서 <b>[E]</b> —<br>접수증과 같은 영수증을 <b>[1~4]</b>로 골라 픽업!', '#hud-arrow');
+    } else if (t.step === 1 && d.active.some((a) => a.phase === 'carry')) {
+      t.step = 2;
+      this.ui.tutorialGuide(2,
+        '<b>[M]</b>을 1초 이상 길게 눌러<br>네비게이션으로 배달 루트를 확인해보세요', '#navphone');
+    } else if (t.step === 2) {
+      if (this._navOpen) t.mHold += dt;
+      if (t.mHold >= 1) {
+        t.step = 3;
+        this.ui.tutorialGuide(3,
+          '지도의 색깔 마커가 목적지!<br>빌라 현관 앞에서 <b>[E]</b>로 전달하면 완료', '#hud-active');
+      }
+    } else if (t.step === 3 && this.stage_.deliveries > 0) {
+      this.tutorial = null;
+      this.ui.tutorialGuide(null);
+      this.ui.toast('튜토리얼 완료! 지금부터 10분 타이머 시작', 2600);
+    }
+  }
+
   // ── 수령 코드 매칭 (FR-24 §12.5) ───────────
 
   startCodeMatch(d) {
@@ -634,11 +684,15 @@ export class Game {
         this.player.update(dt, this.input, this.cam.yaw);
         if (this.input.justPressed('KeyQ')) this.drinkEnergy();
         // 코드 매칭 중엔 1~4·E를 미니게임이 가져간다 (게임 자체는 계속 진행 — §12.5)
-        this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle, { acceptKeys: !this.codeMatch });
+        this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle, {
+          acceptKeys: !this.codeMatch,
+          freezeTimers: !!this.tutorial, // §14.6 튜토리얼 중 의뢰 TTL·배달 시간 정지
+        });
         if (this.codeMatch) this.updateCodeMatch(dt);
+        if (this.tutorial) this.updateTutorial(dt);
         this.obstacles.update(dt);
-        // §12.4 스테이지 제한 10분 — 소진 시 정산으로
-        this.stage_.timeLeft -= dt;
+        // §12.4 스테이지 제한 10분 — 소진 시 정산으로 (튜토리얼 중 정지 — §14.6)
+        if (!this.tutorial) this.stage_.timeLeft -= dt;
         if (this.stage_.timeLeft <= 0) {
           this.stage_.timeLeft = 0;
           this.stageSettle();

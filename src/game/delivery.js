@@ -141,10 +141,12 @@ export class DeliveryManager {
     this.time += dt;
     this._stage = stage;
 
-    // 의뢰 슬롯: TTL 소멸 + 빈 슬롯 리필
+    // 의뢰 슬롯: TTL 소멸 + 빈 슬롯 리필.
+    // §14.6 튜토리얼 중(freezeTimers)엔 TTL·진행 카운트다운 정지, 신규 노출은 허용
     for (let i = 0; i < NUM_SLOTS; i++) {
       const offer = this.slots[i];
       if (offer) {
+        if (opts.freezeTimers) continue;
         offer.ttl -= dt;
         if (offer.ttl <= 0) {
           this.slots[i] = null;
@@ -165,12 +167,14 @@ export class DeliveryManager {
       }
     }
 
-    // 진행 건 카운트다운 + 만료
-    for (const d of [...this.active]) {
-      d.timeLeft -= dt;
-      if (d.timeLeft <= 0) {
-        this.removeActive(d);
-        this.events.onExpired?.(d);
+    // 진행 건 카운트다운 + 만료 (튜토리얼 중엔 정지 — §14.6)
+    if (!opts.freezeTimers) {
+      for (const d of [...this.active]) {
+        d.timeLeft -= dt;
+        if (d.timeLeft <= 0) {
+          this.removeActive(d);
+          this.events.onExpired?.(d);
+        }
       }
     }
 
