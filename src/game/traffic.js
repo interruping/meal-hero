@@ -55,9 +55,9 @@ export class Traffic {
 
   update(dt, player, playing) {
     const H = this.world.groundHeight;
-    const go = this.signals ? this.signals.carsGo() : true;
     for (const car of this.cars) {
-      // 신호 파란불(보행)이면 정지선 앞 급정거, 아니면 최고속 복귀 — 그 외 무브레이크
+      // 자기 축이 빨간불이면 정지선 앞 급정거, 녹색이면 최고속 복귀 — 그 외 무브레이크
+      const go = this.signals ? this.signals.carsGo(car.axis) : true;
       if (!go) {
         const d = this.nextStopDist(car);
         if (d < (car.speed * car.speed) / (2 * BRAKE) + 1.0) {
