@@ -213,7 +213,8 @@ export class UI {
         <div style="margin-top:16px"><button class="mh-btn" id="btn-start">배달 시작</button>${continueBtn}</div>
         <div style="margin-top:14px" class="mh-controls">
           [W A S D] 이동 · [마우스] 시점 · [Space] 점프<br>
-          [E] 픽업 / 전달 · [Shift] 스킬(탈것) · [R] 재시작(게임오버 시)
+          [1~4] 배달 의뢰 수락 / 수령 영수증 선택 · [E] 픽업 / 전달<br>
+          [M] 누르고 있으면 네비게이션 · [Shift] 스킬(탈것) · [R] 재시작
         </div>
         <div style="margin-top:14px">
           <div class="mh-hint">심사 모드 — 스테이지 바로가기</div>
