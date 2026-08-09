@@ -12,6 +12,7 @@ const STREETS = [-66, -33, 0, 33, 66];
 class FlyerWorker {
   constructor(model, pos, game, throwPaper) {
     this.model = model;
+    this.home = pos.clone(); // 원래 자리 — 추적 끝나면 복귀
     this.pos = pos;
     this.game = game;
     this.throwPaper = throwPaper;
@@ -21,12 +22,44 @@ class FlyerWorker {
     model.rotation.y = this.baseRot;
     this.time = Math.random() * 10;
     this.windup = 0; // 던지기 직전 젖히기 연출
+    this.chaseTime = 0; // 이번 추적 누적 시간 (최대 10초)
+    this.rested = true; // 추적 소진 후 홈 복귀해야 재추적 가능
   }
 
   update(dt, player) {
     this.time += dt;
     this.throwCooldown -= dt;
     const d = player.pos.distanceTo(this.pos);
+
+    // 추적: 5m 안에서 발견하면 1m 거리까지 따라붙음, 최대 10초
+    const chasing = this.rested
+      ? d < 5 && this.chaseTime < 10
+      : false;
+    if (chasing) {
+      this.chaseTime += dt;
+      this.rested = this.chaseTime < 10;
+      if (d > 1) {
+        const speed = 2.6;
+        const dirX = (player.pos.x - this.pos.x) / d;
+        const dirZ = (player.pos.z - this.pos.z) / d;
+        this.pos.x += dirX * speed * dt;
+        this.pos.z += dirZ * speed * dt;
+        this.pos.y = this.game.world.groundHeight(this.pos.x, this.pos.z);
+      }
+    } else if (d > 7 || !this.rested) {
+      // 놓쳤거나 지침 — 홈으로 복귀, 도착하면 추적 게이지 리셋
+      const dh = this.home.distanceTo(this.pos);
+      if (dh > 0.3) {
+        const speed = 1.6;
+        this.pos.x += ((this.home.x - this.pos.x) / dh) * speed * dt;
+        this.pos.z += ((this.home.z - this.pos.z) / dh) * speed * dt;
+        this.pos.y = this.game.world.groundHeight(this.pos.x, this.pos.z);
+      } else {
+        this.chaseTime = 0;
+        this.rested = true;
+      }
+    }
+
     if (d < 9) {
       // 플레이어 조준
       this.model.rotation.y = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
@@ -43,6 +76,8 @@ class FlyerWorker {
       this.windup = Math.max(0, this.windup - dt);
       this.model.rotation.x = this.windup > 0.1 ? -0.35 : this.windup > 0 ? 0.3 : 0;
       this.model.position.copy(this.pos);
+      // 추적 중 종종걸음 바운스
+      if (chasing) this.model.position.y = this.pos.y + Math.abs(Math.sin(this.time * 9)) * 0.07;
     } else {
       this.model.rotation.y = this.baseRot;
       this.model.rotation.x = 0;
@@ -100,6 +135,7 @@ class PaperPool {
         p.life = 0;
         p.mesh.visible = false;
         player.applySlowdown(1.6);
+        player.applyPaperHit(p.vel);
         this.game.onObstacleHit('flyer', {});
       }
       if (p.life <= 0) p.mesh.visible = false;
