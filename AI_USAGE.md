@@ -6,7 +6,7 @@
 
 | 도구 | 사용량 | 잔여/한도 |
 |---|---|---|
-| Meshy.ai | **135 크레딧** (9모델 × 15cr) | 965 / 1,100 |
+| Meshy.ai | **165 크레딧** (11모델 × 15cr) | 935 / 1,100 |
 | OpenRouter gpt-image-2 | **$0.42** (71장 × low $0.006, 차량 측면뷰 2장 재생성 포함) | $20 한도 |
 
 ## 개발 도구
@@ -32,8 +32,10 @@
 | obstacle-kid-bike.glb | 방해요소: 자전거 초딩 | child riding small bicycle leaning forward | 3000 | 15 |
 | obstacle-pigeon.glb | 방해요소: 비둘기 | plump pigeon, round fat body | 800 | 15 |
 | obstacle-drunk.glb | 방해요소: 취객 | drunk office worker, rumpled suit, swaying | 3000 | 15 |
+| prop-parked-sedan.glb | 소품: 주차 세단 (박스+텍스처 방식 품질 미달로 3D 교체) | 1990s Korean compact sedan, silver-gray | 1500 | 15 |
+| prop-parked-truck.glb | 소품: 주차 포터 트럭 (동일 사유) | Korean 1-ton flatbed truck, open bed, blue | 1500 | 15 |
 
-합계: **135 크레딧**, 실패·재시도 0회.
+합계: **165 크레딧**, 실패·재시도 0회.
 
 ## gpt-image-2 생성 텍스처 (2026-08-09)
 

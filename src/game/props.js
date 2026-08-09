@@ -220,38 +220,9 @@ export function buildProps(world, scene) {
     add('우편함', m);
   }
 
-  // ── 15·16 주차 차량 (세단·트럭) — 골목 폭 좁히기. 측면 텍스처 + 지붕 금속 ──
-  const sedanMat = sharedMat('prop-car-sedan');
-  const truckMat = sharedMat('prop-car-truck');
-  const carTopMat = sharedMat('shared-metal', { repeatX: 2, repeatY: 2 });
-  for (let i = 0; i < 12; i++) {
-    const isTruck = i % 3 === 2;
-    const vertical = rng() < 0.5;
-    const line = STREETS[Math.floor(rng() * STREETS.length)];
-    const t = -70 + rng() * 130;
-    const offset = (rng() < 0.5 ? -1 : 1) * (ROAD_HALF - 1.05);
-    const x = vertical ? line + offset : t;
-    const z = vertical ? t : line + offset;
-    const y = H(x, z);
-    const bodyMat = isTruck ? truckMat : sedanMat;
-    const carBody = new THREE.Mesh(
-      new THREE.BoxGeometry(4.3, isTruck ? 1.75 : 1.05, 1.75),
-      // 긴 측면(±z 아님 — 길이축 x)엔 차량 텍스처, 지붕·바닥 금속
-      [bodyMat, bodyMat, carTopMat, carTopMat, bodyMat, bodyMat],
-    );
-    carBody.rotation.y = vertical ? Math.PI / 2 : 0;
-    carBody.position.set(x, y + (isTruck ? 0.9 : 0.55), z);
-    add(isTruck ? '주차트럭' : '주차세단', carBody, true, 0.1);
-    if (!isTruck) {
-      const cabin = new THREE.Mesh(
-        new THREE.BoxGeometry(2.3, 0.55, 1.6),
-        [sedanMat, sedanMat, carTopMat, carTopMat, sedanMat, sedanMat],
-      );
-      cabin.rotation.y = vertical ? Math.PI / 2 : 0;
-      cabin.position.set(x, y + 1.3, z);
-      add('주차세단', cabin);
-    }
-  }
+  // ── 15·16 주차 차량: Meshy 3D 모델 — 로드 후 placeParkedVehicles()에서 배치 ──
+  typeSet.add('주차세단');
+  typeSet.add('주차트럭');
 
   // ── 17 벤치 ──
   const benchMat = sharedMat('prop-bench');
@@ -451,4 +422,36 @@ export function buildProps(world, scene) {
 
   scene.add(group);
   return { group, treeMat, typeCount: typeSet.size, types: [...typeSet] };
+}
+
+// Meshy 주차 차량 배치 (게임 초기화에서 모델 로드 후 호출)
+export function placeParkedVehicles(world, scene, { sedan, truck }) {
+  const group = new THREE.Group();
+  group.name = 'parked-vehicles';
+  let seed = 777;
+  const rng = () => {
+    seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+    return seed / 0x7fffffff;
+  };
+  for (let i = 0; i < 12; i++) {
+    const isTruck = i % 3 === 2;
+    const vertical = rng() < 0.5;
+    const line = STREETS[Math.floor(rng() * STREETS.length)];
+    const t = -70 + rng() * 130;
+    const offset = (rng() < 0.5 ? -1 : 1) * (ROAD_HALF - 1.05);
+    const x = vertical ? line + offset : t;
+    const z = vertical ? t : line + offset;
+    const car = (isTruck ? truck : sedan).clone(true);
+    car.position.set(x, H(x, z), z);
+    // 길이축을 골목 방향으로 + 약간의 주차 각 오차
+    car.rotation.y = (vertical ? 0 : Math.PI / 2) + (rng() - 0.5) * 0.12 + (rng() < 0.5 ? Math.PI : 0);
+    group.add(car);
+    const b = new THREE.Box3().setFromObject(car);
+    world.colliders.push({
+      minX: b.min.x - 0.05, maxX: b.max.x + 0.05,
+      minY: b.min.y, maxY: b.max.y,
+      minZ: b.min.z - 0.05, maxZ: b.max.z + 0.05,
+    });
+  }
+  scene.add(group);
 }
