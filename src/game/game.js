@@ -10,8 +10,9 @@ import { DeliveryManager, MAX_ACTIVE, DELIVERY_COLORS_CSS } from './delivery.js'
 import { ObstacleManager } from './obstacles.js';
 import {
   STAGES, MAX_HP, TOTAL_DEBT, STAGE_TIME, SEASON_DAYS,
-  BONUS_TIME_RATIO, BONUS_MULT, LATE_FEE,
+  BONUS_TIME_RATIO, BONUS_MULT, LATE_FEE, DRINK_COST,
 } from './stages.js';
+import { DASH_COOLDOWN } from './player.js';
 import { VEHICLES } from './vehicles.js';
 import { loadModel, loadAnimated, instantiateAnimated, addSkinnedOutline } from '../core/loader.js';
 import { buildProps, placeParkedVehicles } from './props.js';
@@ -538,6 +539,25 @@ export class Game {
 
   // ── 인게임 이벤트 ──────────────────────────
 
+  // FR-27 에너지 드링크 (§14.1): 순수익 1,500 이상 + 대시 쿨타임 중일 때만
+  drinkEnergy() {
+    const p = this.player;
+    const net = this.stage_.revenue - this.stage_.fees;
+    const onCooldown = p.time >= (p.dashUntil ?? 0) && p.time < (p.dashReadyAt ?? 0);
+    if (!onCooldown) {
+      this.ui.toast('대시 쿨타임이 없을 땐 마실 필요 없음', 1300);
+      return;
+    }
+    if (net < DRINK_COST) {
+      this.ui.toast(`잔액 부족! 에너지 드링크는 ₩${DRINK_COST.toLocaleString()}`, 1500);
+      return;
+    }
+    this.stage_.revenue -= DRINK_COST;
+    p.resetDashCooldown();
+    this.ui.toast(`에너지 드링크! 대시 쿨타임 초기화 (-₩${DRINK_COST.toLocaleString()})`, 1500);
+    this.audio.play('pickup');
+  }
+
   damage(n, cause) {
     if (this.state !== 'playing') return;
     this.stage_.hp -= n;
@@ -590,6 +610,7 @@ export class Game {
       } else {
         this._hadLock = locked;
         this.player.update(dt, this.input, this.cam.yaw);
+        if (this.input.justPressed('KeyQ')) this.drinkEnergy();
         // 코드 매칭 중엔 1~4·E를 미니게임이 가져간다 (게임 자체는 계속 진행 — §12.5)
         this.delivery.update(dt, this.input, this.stageCfg, this.player.vehicle, { acceptKeys: !this.codeMatch });
         if (this.codeMatch) this.updateCodeMatch(dt);
@@ -638,6 +659,10 @@ export class Game {
 
   updateHUD() {
     const d = this.delivery;
+    // §14.1 좌하단 스킬 UI 상태: 대시 쿨타임 게이지 + 드링크 사용 가능 여부
+    const p = this.player;
+    const dashActive = p.time < (p.dashUntil ?? 0);
+    const cdLeft = dashActive ? 0 : Math.max(0, (p.dashReadyAt ?? 0) - p.time);
     this.ui.updateHUD({
       revenue: this.stage_.revenue,
       fees: this.stage_.fees,
@@ -649,6 +674,13 @@ export class Game {
       offers: d.slots,
       active: d.active,
       full: d.active.length >= MAX_ACTIVE,
+      playerPos: p.pos,
+      skill: {
+        dashActive,
+        cdLeft,
+        cdTotal: DASH_COOLDOWN,
+        drinkOk: cdLeft > 0 && this.stage_.revenue - this.stage_.fees >= DRINK_COST,
+      },
     });
 
     // 화살표: 가장 급박한 진행 건 방향 (해당 배달 색)

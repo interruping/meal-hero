@@ -62,6 +62,18 @@ const CSS = `
 .active-row.low .a-sec { color: #b5372f; font-weight: bold; }
 #hud-hint { bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 19px; display: none;
   background: #3a3a38; color: #efeeea; border-color: #efeeea; }
+/* §14.1 좌측 하단 스킬 UI: 대시 쿨타임 게이지 + 에너지 드링크 키·가격 안내 */
+#hud-skills { position: absolute; bottom: 54px; left: 12px; display: flex; gap: 6px; }
+.skill-box { width: 86px; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
+  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); padding: 5px 4px 4px; font-size: 12px;
+  text-align: center; line-height: 1.45; position: relative; overflow: hidden; }
+.skill-box .s-icon { font-size: 19px; display: block; }
+.skill-box .s-key { display: inline-block; background: #3a3a38; color: #efeeea;
+  padding: 0 5px; font-size: 11px; }
+.skill-box .s-cd { position: absolute; left: 0; bottom: 0; width: 100%; height: 0%;
+  background: rgba(58,58,56,0.3); pointer-events: none; }
+.skill-box.off { filter: grayscale(1); opacity: 0.6; }
+.skill-box.active { border-color: #b5372f; color: #b5372f; }
 #hud-arrow { position: absolute; top: 86px; left: 50%; width: 40px; height: 40px; margin-left: -20px;
   font-size: 36px; color: #b5372f; text-align: center; line-height: 40px;
   text-shadow: 2px 2px 0 #efeeea, -1px -1px 0 #efeeea; }
@@ -162,6 +174,18 @@ export class UI {
         <div id="hud-hp" class="hud-panel"></div>
         <div id="hud-clock" class="hud-panel"><span class="c-icon">🕐</span><span id="hud-clock-text">10:00</span></div>
         <div id="hud-stage" class="hud-panel"></div>
+        <div id="hud-skills">
+          <div class="skill-box" id="skill-dash">
+            <span class="s-icon">💨</span>
+            <span class="s-key">Shift</span> 대시
+            <div class="s-cd"></div>
+          </div>
+          <div class="skill-box" id="skill-drink">
+            <span class="s-icon">🥤</span>
+            <span class="s-key">Q</span> ₩1,500
+            <div class="s-cd"></div>
+          </div>
+        </div>
         <div id="hud-hint" class="hud-panel"></div>
         <div id="hud-arrow">▲</div>
         <div id="hud-banner"></div>
@@ -214,7 +238,8 @@ export class UI {
         <div style="margin-top:14px" class="mh-controls">
           [W A S D] 이동 · [마우스] 시점 · [Space] 점프<br>
           [1~4] 배달 의뢰 수락 / 수령 영수증 선택 · [E] 픽업 / 전달<br>
-          [M] 누르고 있으면 네비게이션 · [Shift] 스킬(탈것) · [R] 재시작
+          [Shift] 대시 (3초 가속, 쿨 10초) · [Q] 에너지 드링크 ₩1,500 (쿨 초기화)<br>
+          [M] 누르고 있으면 네비게이션 · [R] 재시작
         </div>
         <div style="margin-top:14px">
           <div class="mh-hint">심사 모드 — 스테이지 바로가기</div>
@@ -347,7 +372,7 @@ export class UI {
 
   setHudVisible(v) { this.hud.style.display = v ? 'block' : 'none'; if (!v) this.hideHint(); }
 
-  updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full }) {
+  updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full, playerPos, skill }) {
     this.el('#hud-money').innerHTML =
       `매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br>순수익 ₩${(revenue - fees).toLocaleString()}`;
     // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
@@ -363,6 +388,15 @@ export class UI {
       this.el('#hud-hp').innerHTML = hearts;
     }
     this.el('#hud-stage').textContent = `${stageLabel} · ${vehicleLabel}`;
+
+    // 스킬 UI (§14.1): 대시 쿨타임 세로 게이지 + 드링크 사용 가능 여부
+    if (skill) {
+      const dash = this.el('#skill-dash');
+      dash.classList.toggle('active', skill.dashActive);
+      dash.classList.toggle('off', !skill.dashActive && skill.cdLeft > 0);
+      dash.querySelector('.s-cd').style.height = `${(skill.cdLeft / skill.cdTotal) * 100}%`;
+      this.el('#skill-drink').classList.toggle('off', !skill.drinkOk);
+    }
 
     // 스테이지 시계 (FR-23): 잔여 1분부터 빨강 + 펄스
     const clock = this.el('#hud-clock');

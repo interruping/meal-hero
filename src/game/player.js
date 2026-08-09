@@ -6,6 +6,12 @@ import { makeBlobShadow } from './shadow.js';
 const GRAVITY = 24;
 const RADIUS = 0.45;
 
+// FR-26 대시 (§14.1): 3초간 1.5×, 쿨타임 10초(종료 시점부터), 대시 중 조향 감쇠
+export const DASH_DURATION = 3;
+export const DASH_COOLDOWN = 10;
+const DASH_MULT = 1.5;
+const DASH_STEER = 0.12; // 대시 중 속도 벡터 수렴 계수 — 회전 반경 확대
+
 // FR-1 이동·점프·중력 + FR-2 탈것 관성 + FR-14 겨울 미끄러짐
 export class Player {
   constructor(world, scene) {
@@ -49,6 +55,14 @@ export class Player {
     this.speedPenaltyUntil = 0;
     this.controlsReversedUntil = 0;
     this.stunnedUntil = 0;
+    this.dashUntil = 0;
+    this.dashReadyAt = 0;
+  }
+
+  // FR-27 에너지 드링크: 대시 쿨타임 즉시 초기화
+  resetDashCooldown() {
+    this.dashUntil = 0;
+    this.dashReadyAt = 0;
   }
 
   update(dt, input, camYaw) {
@@ -74,22 +88,25 @@ export class Player {
       dirZ = (ix * sin - iz * cos) / len;
     }
 
-    // Shift 스킬: 부스트 (쿨다운 5초, 지속 1.8초)
-    if (input.down('ShiftLeft') && this.time >= (this.skillReadyAt ?? 0) && hasInput) {
-      this.skillActiveUntil = this.time + 1.8;
-      this.skillReadyAt = this.time + 5;
+    // FR-26 대시 (§14.1): Shift — 3초간 1.5×, 종료 후 쿨타임 10초
+    if (input.down('ShiftLeft') && this.time >= (this.dashReadyAt ?? 0) && hasInput) {
+      this.dashUntil = this.time + DASH_DURATION;
+      this.dashReadyAt = this.time + DASH_DURATION + DASH_COOLDOWN;
       this.audio?.play('skill');
     }
+    const dashing = this.time < (this.dashUntil ?? 0);
 
     // 목표 속도: 경사·페널티 반영
     let maxSpeed = v.maxSpeed;
-    if (this.time < (this.skillActiveUntil ?? 0)) maxSpeed *= 1.5;
+    if (dashing) maxSpeed *= DASH_MULT;
     if (this.time < this.speedPenaltyUntil) maxSpeed *= 0.45;
     if (hasInput) maxSpeed *= slopeFactor(this.pos.x, this.pos.z, dirX, dirZ);
 
-    // 관성 수렴 (겨울 노면은 수렴 계수 급감 = 미끄러짐)
+    // 관성 수렴 (겨울 노면은 수렴 계수 급감 = 미끄러짐).
+    // 대시 중엔 수렴이 느려져 코너링이 완만해진다 — 속도의 대가 (§14.1)
     const slip = this.slippery ? 0.32 : 1;
-    const rate = (hasInput ? v.accelRate : v.brakeRate) * slip;
+    const steer = dashing ? DASH_STEER : 1;
+    const rate = (hasInput ? v.accelRate : v.brakeRate) * slip * steer;
     const k = 1 - Math.exp(-rate * dt);
     this.vel.x += (dirX * maxSpeed - this.vel.x) * k;
     this.vel.z += (dirZ * maxSpeed - this.vel.z) * k;

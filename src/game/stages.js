@@ -35,5 +35,6 @@ export const DELIVERY_PAY = 5_000; // §12.3 배달 건당 보수
 export const BONUS_TIME_RATIO = 0.7; // 제한 시간 70% 이내 완료 시 보너스
 export const BONUS_MULT = 1.5; // 스피드 보너스 +50%
 export const LATE_FEE = 3_000; // §12.3 지각 수수료
+export const DRINK_COST = 1_500; // §14.1 에너지 드링크 — 대시 쿨타임 초기화
 
 export const MAX_HP = 5;
