@@ -279,6 +279,8 @@ export class Game {
       if (this._bagMount) this.models.bag.visible = false;
       const vehicle = this.models[vehicleKey];
       vehicle.position.set(0, 0, 0);
+      // 차량 GLB 3종 모두 앞머리(핸들바)가 -x — 진행 방향(+z)으로 90° 정렬
+      vehicle.rotation.y = Math.PI / 2;
       holder.add(vehicle);
       hero.position.set(0, vehicleKey === 'kickboard' ? 0.14 : 0.4, -0.05);
       hero.rotation.x = vehicleKey === 'kickboard' ? 0 : 0.12;
