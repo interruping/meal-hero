@@ -164,6 +164,11 @@ export class Player {
   }
 
   resolveCollisions() {
+    // 벽 법선 방향 진입 속도 최대값 — 과속 정면 충돌 판정용 (스치는 접촉은 법선 성분 작음).
+    // 신규 접촉만 집계: 벽에 밀착한 채 전진키를 유지하면 속도 벡터가 다시 차올라
+    // 접촉 프레임마다 재판정되므로, 떨어졌다 다시 부딪힐 때만 충돌로 친다
+    let maxImpact = 0;
+    const touching = new Set();
     for (const c of this.world.colliders) {
       if (this.pos.y > c.maxY || this.pos.y + 1.6 < c.minY) continue;
       const nx = Math.max(c.minX, Math.min(this.pos.x, c.maxX));
@@ -175,6 +180,9 @@ export class Player {
       if (d2 > 1e-8) {
         const d = Math.sqrt(d2);
         const push = RADIUS - d;
+        const into = -(this.vel.x * (dx / d) + this.vel.z * (dz / d));
+        touching.add(c);
+        if (into > maxImpact && !this._touching?.has(c)) maxImpact = into;
         this.pos.x += (dx / d) * push;
         this.pos.z += (dz / d) * push;
       } else {
@@ -186,10 +194,15 @@ export class Player {
           { d: c.maxZ - this.pos.z + RADIUS, x: 0, z: 1 },
         ];
         exits.sort((a, b) => a.d - b.d);
+        const into = -(this.vel.x * exits[0].x + this.vel.z * exits[0].z);
+        touching.add(c);
+        if (into > maxImpact && !this._touching?.has(c)) maxImpact = into;
         this.pos.x += exits[0].x * exits[0].d;
         this.pos.z += exits[0].z * exits[0].d;
       }
     }
+    this._touching = touching;
+    if (maxImpact > 0) this.onWallImpact?.(maxImpact);
   }
 
   applySlowdown(seconds) { this.speedPenaltyUntil = this.time + seconds; }

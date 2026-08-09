@@ -45,13 +45,29 @@ const CSS = `
 #hud-toast { position: absolute; top: 42%; left: 50%; transform: translate(-50%, -50%); font-size: 18px;
   color: #efeeea; text-shadow: 2px 2px 0 #3a3a38, -1px -1px 0 #3a3a38, 1px -1px 0 #3a3a38, -1px 1px 0 #3a3a38;
   display: none; text-align: center; }
-/* 비둘기 시야 방해 */
-.pigeon-wing { position: absolute; width: 160px; height: 90px; background: #5c5c58; border-radius: 50%;
-  opacity: 0.9; animation: wing-fly 1.4s ease-out forwards; }
-@keyframes wing-fly {
-  0% { transform: translate(0, 40vh) scale(0.6) rotate(0deg); opacity: 0.95; }
-  50% { transform: translate(var(--dx), -10vh) scale(1.4) rotate(20deg); opacity: 0.9; }
-  100% { transform: translate(calc(var(--dx) * 2), -70vh) scale(0.8) rotate(-15deg); opacity: 0; }
+/* 부분 하트 (과속 충돌 0.25 단위 차감) */
+.hp-part { background: linear-gradient(90deg, #b5372f var(--f), rgba(181,55,47,0.25) var(--f));
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+/* 비둘기 시야 방해: 화면(앞유리)에 부딪힌 비둘기 + 잔류 깃털 */
+.pigeon-splat { position: absolute; left: 50%; top: 50%; width: min(46vmin, 380px);
+  image-rendering: pixelated; pointer-events: none; z-index: 5;
+  animation: splat-hit 2.1s ease-in forwards; }
+@keyframes splat-hit {
+  0% { transform: translate(-50%, -50%) scale(2.8); opacity: 0; }
+  7% { transform: translate(-50%, -50%) scale(0.94); opacity: 1; }
+  12% { transform: translate(-50%, -51%) scale(1.05); }
+  17% { transform: translate(-50%, -50%) scale(1); }
+  72% { transform: translate(-50%, -47%) scale(1) rotate(2deg); opacity: 1; }
+  100% { transform: translate(-50%, 65%) rotate(10deg); opacity: 0; }
+}
+.pigeon-feather { position: absolute; width: 64px; image-rendering: pixelated;
+  pointer-events: none; z-index: 4; opacity: 0;
+  animation: feather-stay 2.3s ease-in forwards; }
+@keyframes feather-stay {
+  0% { transform: translateY(-24px) rotate(var(--r)) scale(var(--s)); opacity: 0; }
+  10% { opacity: 0.95; }
+  74% { transform: translateY(14px) rotate(calc(var(--r) + 18deg)) scale(var(--s)); opacity: 0.95; }
+  100% { transform: translateY(52px) rotate(calc(var(--r) + 38deg)) scale(var(--s)); opacity: 0; }
 }
 `;
 
@@ -223,7 +239,18 @@ export class UI {
   updateHUD({ revenue, goal, hp, maxHp, stageLabel, vehicleLabel, timer }) {
     this.el('#hud-money').innerHTML =
       `매출 ₩${revenue.toLocaleString()}<br>목표 ₩${goal.toLocaleString()}`;
-    this.el('#hud-hp').textContent = '♥'.repeat(hp) + '♡'.repeat(Math.max(0, maxHp - hp));
+    // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
+    if (hp !== this._lastHp) {
+      this._lastHp = hp;
+      let hearts = '';
+      for (let i = 0; i < maxHp; i++) {
+        const f = Math.max(0, Math.min(1, hp - i));
+        if (f >= 1) hearts += '♥';
+        else if (f <= 0) hearts += '♡';
+        else hearts += `<span class="hp-part" style="--f:${f * 100}%">♥</span>`;
+      }
+      this.el('#hud-hp').innerHTML = hearts;
+    }
     this.el('#hud-stage').textContent = `${stageLabel} · ${vehicleLabel}`;
     const timerEl = this.el('#hud-timer');
     const fill = timerEl.querySelector('.fill');
@@ -259,16 +286,28 @@ export class UI {
     this.bannerTimeout = setTimeout(() => { b.style.display = 'none'; }, ms);
   }
 
+  // 비둘기 충돌: 앞유리에 부딪힌 스플랫을 화면 중앙에, 깃털은 중앙 피해 산개 후 2초 잔류
   pigeonFlash() {
-    for (let i = 0; i < 7; i++) {
-      const w = document.createElement('div');
-      w.className = 'pigeon-wing';
-      w.style.left = `${10 + Math.random() * 80}%`;
-      w.style.top = `${30 + Math.random() * 50}%`;
-      w.style.setProperty('--dx', `${(Math.random() - 0.5) * 300}px`);
-      w.style.animationDelay = `${Math.random() * 0.25}s`;
-      this.hud.appendChild(w);
-      setTimeout(() => w.remove(), 1800);
+    const base = import.meta.env.BASE_URL;
+    const splat = document.createElement('img');
+    splat.className = 'pigeon-splat';
+    splat.src = `${base}generated/fx-pigeon-splat.png`;
+    this.hud.appendChild(splat);
+    setTimeout(() => splat.remove(), 2200);
+    for (let i = 0; i < 10; i++) {
+      const f = document.createElement('img');
+      f.className = 'pigeon-feather';
+      f.src = `${base}generated/fx-feather.png`;
+      // 중앙(스플랫 영역) 밖 빈 곳에 배치 — 극좌표로 중심 반경 26vmin 이상
+      const ang = (i / 10) * Math.PI * 2 + Math.random() * 0.6;
+      const r = 26 + Math.random() * 22;
+      f.style.left = `calc(50% + ${Math.cos(ang) * r}vmin)`;
+      f.style.top = `calc(50% + ${Math.sin(ang) * r * 0.72}vmin)`;
+      f.style.setProperty('--r', `${Math.random() * 360}deg`);
+      f.style.setProperty('--s', `${0.6 + Math.random() * 0.9}`);
+      f.style.animationDelay = `${Math.random() * 0.3}s`;
+      this.hud.appendChild(f);
+      setTimeout(() => f.remove(), 2800);
     }
   }
 
