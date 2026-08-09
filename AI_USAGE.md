@@ -7,7 +7,7 @@
 | 도구 | 사용량 | 잔여/한도 |
 |---|---|---|
 | Meshy.ai | **888 크레딧** (모델 25종 + 행인 10×2세대 + 리깅·애니메이션 + 난간 재시도 30) | 212 / 1,100 (API 실측) |
-| OpenRouter gpt-image-2 | **$0.46** (77장 × low $0.006) | $20 한도 (gpt-audio와 공유) |
+| OpenRouter gpt-image-2 | **$0.49** (82장 × low $0.006) | $20 한도 (gpt-audio와 공유) |
 | OpenRouter gpt-audio-mini | **$0.002** (보이스 4클립, 오디오 출력 601토큰 × $2.4/M) | 〃 |
 
 ## 개발 도구
@@ -127,6 +127,8 @@ Chair_Sit_Idle_M(action 33) 애니메이션 **3 크레딧** 추가 (`scripts/mes
 | 충돌 FX `fx-*` | 2 | 비둘기 화면 충돌 연출 (`scripts/gen-fx.mjs`): 앞유리 스플랫 + 잔류 깃털 스프라이트. 마젠타 배경 생성 후 코너 평균 키잉으로 알파 추출 (2장 × low ≈ $0.012) |
 | 표지판 `prop-sign-schoolzone` | 1 | 어린이보호구역 표지판 면 (상가 어닝 제거로 §7.10 30종 유지용 신규 소품, low $0.006) |
 | 구멍가게 파사드 `shop-super`·`shop-baekban` | 2 | §14.2 가게 재배치(FR-28) — 빌라 사이 구멍가게 4곳용 동네슈퍼·백반집 전면 (2장 × low ≈ $0.012) |
+| 인도 보도블럭 `sidewalk-*` | 4 | §15.4 인도·차도 분리(FR-36) — 계절별 보도블럭 타일 (4장 × low ≈ $0.024) |
+| 타이틀 로고 `logo-title` | 1 | §15.5 (FR-37) "MEAL HERO : delivery simulator" 비트맵 로고 (`scripts/gen-logo.mjs`). 마젠타 배경 생성 후 색상 규칙(r−g>50 ∧ b−g>30) 키잉 — 프롬프트의 desaturated가 배경까지 탁하게 만들어 코너 거리 키잉(임계 60) 실패, 벽돌 레드(B≈G)와 마젠타(B≫G)를 채널 부호로 분리 (1장 × low $0.006) |
 
 ## gpt-audio-mini 보이스 SFX (2026-08-09, FR-25 §12.6)
 

@@ -308,7 +308,9 @@ export class UI {
       : '';
     const s = this.screen(`
       <div class="mh-panel">
-        <h1 class="mh-title">MEAL HERO</h1>
+        <img id="title-logo" src="${import.meta.env.BASE_URL}generated/logo-title.png"
+          alt="MEAL HERO : delivery simulator"
+          style="width:400px; max-width:100%; display:block; margin:0 auto; image-rendering:pixelated">
         <p class="mh-sub">빚 2,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
         <div style="margin-top:16px"><button class="mh-btn primary" id="btn-start">배달 시작</button>${continueBtn}</div>
         <div style="margin-top:14px" class="mh-controls">
