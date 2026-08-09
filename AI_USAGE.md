@@ -73,6 +73,20 @@ Library 액션 적용(3cr) → 애니메이션 GLB 다운로드 → 256px 축소
 프레임 원복시키는 문제). 추가 크레딧 0으로 해결, 교훈: 비율은 프롬프트 재생성 도박보다
 본 스케일 후처리가 확실하고 저렴하다.
 
+## Meshy.ai 알바생 리깅·애니메이션 (2026-08-09, 4차)
+
+전단지 알바생이 정적 모델로 슬라이드 이동(피드백) — 1차 배치의 refine 태스크
+(`019fe3ae-8acb…`)를 재사용해 리깅 후 걷기·대기 애니메이션 생성 (`scripts/meshy-rig-flyer.mjs`).
+
+| 항목 | 크레딧 | 결과물 |
+|---|---|---|
+| 리깅 (height 1.65m) | 5 | rig 태스크 (rig-report.json) |
+| Casual_Walk (action 30) | 3 | `obstacle-flyer-worker-walk.glb` |
+| Idle (action 0) | 3 | `obstacle-flyer-worker-idle.glb` |
+
+4차 소계: **11 크레딧**. 잔액 **245 실측**. 런타임은 걷기/대기 크로스페이드 +
+이동 속도에 보행 사이클 동기화, `applyHeadRatio(0.316)`로 가분수 정합 (행인과 동일 방식).
+
 ## gpt-image-2 생성 텍스처 (2026-08-09)
 
 파이프라인: `scripts/gen-textures.mjs` (전체 프롬프트는 파일 내 MANIFEST 참조) → 1024px low 생성

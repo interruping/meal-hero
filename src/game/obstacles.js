@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { loadModel, loadAnimated, instantiateAnimated, addSkinnedOutline, inflateHead } from '../core/loader.js';
+import { loadModel, loadAnimated, instantiateAnimated, addSkinnedOutline, inflateHead, applyHeadRatio } from '../core/loader.js';
 import { makeBlobShadow } from './shadow.js';
 import { addOutline } from './walkanim.js';
 import { sharedMat } from './textures.js';
@@ -21,6 +21,8 @@ class FlyerWorker {
     this.baseRot = Math.random() * Math.PI * 2;
     model.rotation.y = this.baseRot;
     this.time = Math.random() * 10;
+    this.anim = null; // 스켈레톤 걷기/대기 (리깅 GLB 있을 때)
+    this.moveSpeed = 0; // 이번 프레임 이동 속도 — 보행 사이클 동기화용
     this.windup = 0; // 던지기 직전 젖히기 연출
     this.chaseTime = 0; // 이번 추적 누적 시간 (최대 10초)
     this.rested = true; // 추적 소진 후 홈 복귀해야 재추적 가능
@@ -37,6 +39,7 @@ class FlyerWorker {
   update(dt, player) {
     this.time += dt;
     this.throwCooldown -= dt;
+    this.moveSpeed = 0;
     const d = player.pos.distanceTo(this.pos);
 
     // 추적: 5m 안에서 발견하면 1m 거리까지 따라붙음, 최대 10초 (명중 후 5초는 쉼)
@@ -53,6 +56,7 @@ class FlyerWorker {
         this.pos.x += dirX * speed * dt;
         this.pos.z += dirZ * speed * dt;
         this.pos.y = this.game.world.groundHeight(this.pos.x, this.pos.z);
+        this.moveSpeed = speed;
       }
     } else if (d > 7 || !this.rested) {
       // 놓쳤거나 지침 — 홈으로 복귀, 도착하면 추적 게이지 리셋
@@ -62,6 +66,7 @@ class FlyerWorker {
         this.pos.x += ((this.home.x - this.pos.x) / dh) * speed * dt;
         this.pos.z += ((this.home.z - this.pos.z) / dh) * speed * dt;
         this.pos.y = this.game.world.groundHeight(this.pos.x, this.pos.z);
+        this.moveSpeed = speed;
       } else {
         this.chaseTime = 0;
         this.rested = true;
@@ -84,13 +89,27 @@ class FlyerWorker {
       this.windup = Math.max(0, this.windup - dt);
       this.model.rotation.x = this.windup > 0.1 ? -0.35 : this.windup > 0 ? 0.3 : 0;
       this.model.position.copy(this.pos);
-      // 추적 중 종종걸음 바운스
-      if (chasing) this.model.position.y = this.pos.y + Math.abs(Math.sin(this.time * 9)) * 0.07;
+      // 추적 중 종종걸음 바운스 (정적 폴백 전용 — 스켈레톤은 보행 사이클이 대체)
+      if (chasing && !this.anim) this.model.position.y = this.pos.y + Math.abs(Math.sin(this.time * 9)) * 0.07;
     } else {
-      this.model.rotation.y = this.baseRot;
+      // 조준 범위 밖: 복귀 중엔 진행 방향, 서 있으면 원래 방향
+      this.model.rotation.y = this.moveSpeed > 0.1
+        ? Math.atan2(this.home.x - this.pos.x, this.home.z - this.pos.z)
+        : this.baseRot;
       this.model.rotation.x = 0;
       this.model.position.copy(this.pos);
-      this.model.position.y = this.pos.y + Math.abs(Math.sin(this.time * 2)) * 0.03;
+      if (!this.anim) this.model.position.y = this.pos.y + Math.abs(Math.sin(this.time * 2)) * 0.03;
+    }
+
+    // 스켈레톤 걷기/대기 크로스페이드 — 이동 속도에 보행 사이클 동기화
+    if (this.anim) {
+      const target = this.moveSpeed > 0.1 ? 1 : 0;
+      const w = this.anim.walk.getEffectiveWeight();
+      const nw = w + (target - w) * Math.min(1, dt * 8);
+      this.anim.walk.setEffectiveWeight(nw);
+      this.anim.idle.setEffectiveWeight(1 - nw);
+      this.anim.walk.timeScale = 0.5 + this.moveSpeed * 0.5;
+      this.anim.mixer.update(dt);
     }
   }
 }
@@ -343,6 +362,16 @@ export class ObstacleManager {
     this.protoFlyer = await loadModel('obstacle-flyer-worker', 1.65);
     // 주인공 대비 얼굴 비중 소폭 부족 — 머리 영역 버텍스 확대로 가분수 강화 (크레딧 0)
     inflateHead(this.protoFlyer, 1.3, 0.66, 1.65);
+    // 알바생 스켈레톤 걷기(Casual_Walk)+대기(Idle) — 리깅 GLB 없으면 정적 폴백
+    try {
+      const [walk, idle] = await Promise.all([
+        loadAnimated('obstacle-flyer-worker-walk', 1.65),
+        loadAnimated('obstacle-flyer-worker-idle', 1.65),
+      ]);
+      this.flyerAsset = { walk, idle };
+    } catch {
+      this.flyerAsset = null;
+    }
     this.protoKid = await loadModel('obstacle-kid-bike', 1.35);
     this.protoPigeon = await loadModel('obstacle-pigeon', 0.32);
     this.protoDrunk = await loadModel('obstacle-drunk', 1.7);
@@ -408,9 +437,27 @@ export class ObstacleManager {
       }
       if (!this.paperPool) this.paperPool = new PaperPool(this.scene, this.game);
       for (const p of spots) {
-        const m = this.protoFlyer.clone(true);
+        let m, anim = null;
+        if (this.flyerAsset) {
+          const inst = instantiateAnimated(this.flyerAsset.walk);
+          applyHeadRatio(inst.model, 0.316, 1.65); // 행인과 동일 가분수 정합
+          addSkinnedOutline(inst.model, 0.02);
+          const sh = makeBlobShadow(0.5);
+          sh.position.y = 0.04;
+          inst.model.add(sh);
+          const walk = inst.mixer.clipAction(inst.clips[0]);
+          const idle = inst.mixer.clipAction(this.flyerAsset.idle.clips[0]);
+          walk.play(); idle.play();
+          walk.setEffectiveWeight(0); idle.setEffectiveWeight(1);
+          m = inst.model;
+          anim = { mixer: inst.mixer, walk, idle };
+        } else {
+          m = this.protoFlyer.clone(true);
+        }
         this.group.add(m);
-        this.flyers.push(new FlyerWorker(m, p, this.game, (o, pl, w) => this.paperPool.throwAt(o, pl, w)));
+        const f = new FlyerWorker(m, p, this.game, (o, pl, w) => this.paperPool.throwAt(o, pl, w));
+        f.anim = anim;
+        this.flyers.push(f);
       }
       this.introBanner('flyer');
     }
