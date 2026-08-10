@@ -263,6 +263,35 @@ body.nav-open #app > canvas { filter: blur(7px) brightness(0.9); }
   pointer-events: none; z-index: 8; }
 #goal-flash.on { animation: goal-flash 0.5s ease-out; }
 @keyframes goal-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+/* §19.1 (FR-58/59) 코드 매칭 정답/오답 대형 타이포 슬램 — 크게 등장해 순간 수축(꽝)·진동,
+   잠시 유지 후 페이드아웃. 포인터 통과·조작 잠금 없음 (게임 흐름 방해 금지) */
+#slam { position: absolute; inset: 0; display: none; z-index: 9; pointer-events: none;
+  align-items: center; justify-content: center; }
+#slam.on { display: flex; }
+#slam .sl-wrap { text-align: center; animation: slam-in 1.7s ease-out forwards; }
+#slam .sl-icon { display: none; }
+#slam.good .sl-icon { display: block; }
+#slam .sl-icon svg { width: clamp(96px, 14vw, 170px); height: auto;
+  filter: drop-shadow(6px 6px 0 rgba(58,58,56,0.55)); margin: 0 auto 4px; }
+#slam .sl-text { font-size: clamp(36px, 6.5vw, 88px); font-weight: bold; line-height: 1.3;
+  letter-spacing: 2px; white-space: nowrap; }
+#slam .sl-text .sl-sub { display: block; font-size: 0.55em; margin-top: 10px; }
+#slam.good .sl-text { color: #c9a13b; }
+#slam.bad .sl-text { color: #b5372f; }
+#slam .sl-text, #slam .sl-text .sl-sub {
+  text-shadow: 3px 0 0 #26262a, -3px 0 0 #26262a, 0 3px 0 #26262a, 0 -3px 0 #26262a,
+    3px 3px 0 #26262a, -3px -3px 0 #26262a, 3px -3px 0 #26262a, -3px 3px 0 #26262a,
+    8px 8px 0 rgba(58,58,56,0.5); }
+@keyframes slam-in {
+  0% { transform: scale(2.6); opacity: 0; }
+  9% { transform: scale(0.9); opacity: 1; }
+  13% { transform: scale(1.06) translate(-7px, 5px); }
+  17% { transform: scale(0.96) translate(6px, -4px); }
+  21% { transform: scale(1.02) translate(-3px, 2px); }
+  25% { transform: scale(1) translate(0, 0); }
+  80% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.04); opacity: 0; }
+}
 .goal-confetti { position: absolute; top: -14px; width: 9px; height: 13px;
   pointer-events: none; z-index: 8; opacity: 0;
   animation: confetti-fall var(--t) ease-in var(--d) forwards; }
@@ -371,6 +400,21 @@ export class UI {
             <div style="color:#6a6a66">일치하는 영수증을 [1~4]로!</div>
           </div>
         </div>
+        <div id="slam"><div class="sl-wrap">
+          <div class="sl-icon"><svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+            <rect x="3" y="0" width="5" height="7" fill="#26262a"/>
+            <rect x="3" y="5" width="12" height="10" fill="#26262a"/>
+            <rect x="0" y="5" width="4" height="10" fill="#26262a"/>
+            <rect x="4" y="1" width="3" height="5" fill="#efeeea"/>
+            <rect x="4" y="6" width="10" height="8" fill="#efeeea"/>
+            <rect x="1" y="6" width="2" height="8" fill="#4f6d8f"/>
+            <rect x="7" y="6" width="1" height="3" fill="#26262a"/>
+            <rect x="9" y="8" width="5" height="1" fill="#26262a"/>
+            <rect x="9" y="10" width="5" height="1" fill="#26262a"/>
+            <rect x="9" y="12" width="5" height="1" fill="#26262a"/>
+          </svg></div>
+          <div class="sl-text"></div>
+        </div></div>
       </div>
       <div id="screen-holder"></div>
     `;
@@ -863,6 +907,21 @@ export class UI {
 
   hideCodeMatch() {
     this.el('#codematch').style.display = 'none';
+  }
+
+  // §19.1 (FR-58/59) 정답/오답 대형 타이포 슬램 — 기존 오답 토스트 대체
+  showSlam(correct) {
+    const s = this.el('#slam');
+    s.classList.toggle('good', correct);
+    s.classList.toggle('bad', !correct);
+    s.querySelector('.sl-text').innerHTML = correct
+      ? '안전히 배달해주세요~'
+      : '시간을 낭비했습니다<span class="sl-sub">배달 가능 시간 -5초</span>';
+    s.classList.remove('on');
+    void s.offsetWidth; // 연속 픽업 시 애니메이션 재시작
+    s.classList.add('on');
+    clearTimeout(this._slamT);
+    this._slamT = setTimeout(() => s.classList.remove('on'), 1750);
   }
 
   // 비둘기 충돌: 앞유리에 부딪힌 스플랫을 화면 중앙에, 깃털은 중앙 피해 산개 후 2초 잔류

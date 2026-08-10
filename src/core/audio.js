@@ -15,6 +15,12 @@ const SFX = {
   gameover: 'sfx-gameover.mp3', // 게임오버 (공 + 부저)
   jump: 'sfx-jump.mp3',
   skill: 'sfx-skill.mp3',
+  glass: 'sfx-glass.mp3', // §19.2 과속 충돌 파손 (유리 깨짐)
+  horn: 'sfx-horn.mp3', // §19.4 차량 니어미스 경적
+  voiceSafe: 'voice-safe.mp3', // §19.1 정답 "안전히 배달해주세요~"
+  voiceWrong: 'voice-wrong.mp3', // §19.1 오답 "기사님 잘못 가져가셨어요~!"
+  voiceEnjoy: 'voice-enjoy.mp3', // §19.3 전달 "맛있게 드세요"
+  voiceFast: 'voice-fast.mp3', // §19.3 보너스 전달 "와우 빨리 오셔서 감사해요!"
   flyer: 'voice-flyer.mp3', // "전단지 받아가세요~!"
   kid: 'voice-kid.mp3', // "따르릉 따르릉! 비켜주세요!!"
   drunk: 'voice-drunk.mp3', // 취객 웅얼거림

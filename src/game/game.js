@@ -656,10 +656,10 @@ export class Game {
     this.codeMatch = null;
     this.ui.hideCodeMatch();
     this.delivery.confirmPickup(cm.d, correct ? 0 : 5);
-    if (!correct) {
-      this.ui.toast('영수증 불일치! 배달 시간 -5초', 1800);
-      this.audio.play('codeBad');
-    }
+    // §19.1 (FR-58/59) 대형 타이포 슬램 + 보이스 — 기존 오답 토스트 대체
+    this.ui.showSlam(correct);
+    this.audio.play(correct ? 'voiceSafe' : 'voiceWrong');
+    if (!correct) this.audio.play('codeBad');
   }
 
   // ── 인게임 이벤트 ──────────────────────────
