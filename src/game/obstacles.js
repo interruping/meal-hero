@@ -60,9 +60,10 @@ class FlyerWorker {
     this.chaseCooldownUntil = 0; // 전단지 명중 시 추적 쿨타임
   }
 
-  // 던진 전단지가 주인공에게 명중 — 추적 중단 + 5초 쿨타임
+  // 던진 전단지가 주인공에게 명중 — 10초간 공격(던지기)·추적 전면 중단 (9차 후속 유저 피드백)
   onPaperHit() {
-    this.chaseCooldownUntil = this.time + 5;
+    this.attackCooldownUntil = this.time + 10;
+    this.chaseCooldownUntil = this.time + 10;
     this.chaseTime = 0;
     this.rested = true;
   }
@@ -135,7 +136,7 @@ class FlyerWorker {
     if (d < 9) {
       // 플레이어 조준
       this.model.rotation.y = Math.atan2(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
-      if (this.throwCooldown <= 0 && d > 1.2) {
+      if (this.throwCooldown <= 0 && d > 1.2 && this.time >= (this.attackCooldownUntil ?? 0)) {
         this.throwCooldown = 1.4;
         this.windup = 0.22;
         const origin = this.pos.clone();

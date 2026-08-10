@@ -68,7 +68,8 @@ export class Game {
     // 소품은 Meshy 모델 로드 후 init()에서 배치
     this.applySeason('spring'); // 타이틀 배경도 팔레트 적용
     this.player = new Player(this.world, this.scene);
-    // 탈것 과속 정면 충돌: 최고속 근접 상태로 벽·소품에 박으면 체력 0.25 차감 + 빨간 점멸.
+    // 탈것 과속 정면 충돌: 최고속 근접 상태로 벽·소품에 박으면 급감속 + 충돌 연출.
+    // 체력 페널티는 9차 후속 유저 피드백으로 삭제 — 연출·감속만 유지.
     // 법선 진입 속도 기준이라 벽에 스치는 주행은 면제. 구보는 면제
     this.player.onWallImpact = (impact) => {
       const p = this.player;
@@ -79,11 +80,12 @@ export class Game {
       p.flashUntil = p.time + 0.45;
       p.vel.x *= 0.25;
       p.vel.z *= 0.25;
-      this.damage(0.25, 'crash');
+      this.cam.shake(0.5, 0.35);
+      this.audio.play('crash');
       // §19.2 (FR-60) 화면 빨간 플래시 + 파손 SFX (기존 crash와 병행)
       this.ui.damageFlash();
       this.audio.play('glass');
-      this.ui.toast('쾅! 과속 충돌 (-체력 ¼)');
+      this.ui.toast('쾅! 과속 충돌');
     };
     this.cam = new FollowCamera(this.world);
     this.delivery = new DeliveryManager(this.world, this.player, this.scene, {
@@ -698,7 +700,7 @@ export class Game {
     this.audio.play('pickup');
   }
 
-  // §15.4 (FR-36) 차에 치임: 즉시 하트 1 + 진행 방향으로 코믹하게 튕겨나감
+  // §15.4 (FR-36) 차에 치임: 체력 ¼(9차 후속 완화) + 진행 방향으로 코믹하게 튕겨나감
   onCarHit(car, fx, fz) {
     const p = this.player;
     if (this.state !== 'playing') return;
@@ -716,9 +718,9 @@ export class Game {
     p.vel.x = fx * 16;
     p.vel.z = fz * 16;
     p.vel.y = 5.5;
-    this.ui.toast('빵빵!! 무자비한 차에 치였다 (-체력 1)', 1800);
+    this.ui.toast('빵빵!! 무자비한 차에 치였다 (-체력 ¼)', 1800);
     this.ui.damageFlash(); // §19.2 플래시 재사용 (§13 확정)
-    this.damage(1, 'crash');
+    this.damage(0.25, 'crash'); // 9차 후속: 하트 1 → ¼ (유저 피드백)
   }
 
   // §20.2 (FR-65) 대시 넉백 "쿵" 임팩트 — 흔들림 + 스타버스트 + 타격음
