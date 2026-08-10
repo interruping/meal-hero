@@ -73,4 +73,8 @@ npm run build   # dist/ 정적 빌드
 - 텍스처 86장 (파사드·지면·계절·간판·이펙트): gpt-image-2 생성 / 한국어 보이스 8클립: gpt-audio-mini 생성
 - BGM·효과음: CC0 외부 에셋 (Juhani Junkala, Kenney) + ffmpeg 가공·자체 합성
 - 개발 전 과정 Claude Code 에이전트 주도 — 도구·프롬프트·비용 전체 기록은 [`AI_USAGE.md`](AI_USAGE.md)
-- 기획·완료 기준: [`PRD.md`](PRD.md) / 라이선스·출처: [`CREDITS.md`](CREDITS.md)
+- 기획·완료 기준: [`PRD.md`](PRD.md) / 외부 에셋 출처: [`CREDITS.md`](CREDITS.md)
+
+## 라이선스
+
+소스 코드는 [MIT License](LICENSE). 외부 에셋(BGM·효과음·폰트)은 각자의 라이선스(CC0, SIL OFL 1.1)를 따르며 출처는 [`CREDITS.md`](CREDITS.md)에 명시.
