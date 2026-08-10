@@ -6,10 +6,10 @@ import { makeBlobShadow } from './shadow.js';
 const GRAVITY = 24;
 const RADIUS = 0.45;
 
-// FR-26 대시 (§14.1): 3초간 1.5×, 쿨타임 10초(종료 시점부터), 대시 중 조향 감쇠
+// FR-26 대시 (§14.1): 3초간 부스트, 쿨타임 10초(종료 시점부터), 대시 중 조향 감쇠
 export const DASH_DURATION = 3;
 export const DASH_COOLDOWN = 10;
-const DASH_MULT = 1.5;
+const DASH_MULT = 2.25; // §17.5 (FR-51) 1.5 → 2.25 (+50%)
 const DASH_STEER = 0.12; // 대시 중 속도 벡터 수렴 계수 — 회전 반경 확대
 
 // FR-1 이동·점프·중력 + FR-2 탈것 관성 + FR-14 겨울 미끄러짐
@@ -57,6 +57,8 @@ export class Player {
     this.stunnedUntil = 0;
     this.dashUntil = 0;
     this.dashReadyAt = 0;
+    this.locked = false;
+    this.invulnerable = false;
   }
 
   // FR-27 에너지 드링크: 대시 쿨타임 즉시 초기화
@@ -77,6 +79,8 @@ export class Player {
     if (input.down('KeyD')) ix += 1;
     if (this.time < this.controlsReversedUntil) { ix = -ix; iz = -iz; }
     if (this.time < this.stunnedUntil) { ix = 0; iz = 0; }
+    // §17.7 (FR-53) 코드 매칭 중 잠금 — 입력 무시 + 수평 속도 즉시 0 (제자리 정지)
+    if (this.locked) { ix = 0; iz = 0; this.vel.x = 0; this.vel.z = 0; }
 
     const hasInput = ix !== 0 || iz !== 0;
     let dirX = 0, dirZ = 0;
@@ -95,6 +99,7 @@ export class Player {
       this.audio?.play('skill');
     }
     const dashing = this.time < (this.dashUntil ?? 0);
+    this.isDashing = dashing; // §17.5 바람 이펙트(windfx)가 조회
 
     // 목표 속도: 경사·페널티 반영
     let maxSpeed = v.maxSpeed;
@@ -103,17 +108,33 @@ export class Player {
     if (hasInput) maxSpeed *= slopeFactor(this.pos.x, this.pos.z, dirX, dirZ);
 
     // 관성 수렴 (겨울 노면은 수렴 계수 급감 = 미끄러짐).
-    // 대시 중엔 수렴이 느려져 코너링이 완만해진다 — 속도의 대가 (§14.1)
+    // 대시 중엔 방향 전환만 감쇠(코너링 완만 — 속도의 대가 §14.1)하고 속력
+    // 상승은 전속 수렴 — §17.5 배율 2.25×가 실제 속도로 나오게 분리
     const slip = this.slippery ? 0.32 : 1;
-    const steer = dashing ? DASH_STEER : 1;
-    const rate = (hasInput ? v.accelRate : v.brakeRate) * slip * steer;
-    const k = 1 - Math.exp(-rate * dt);
-    this.vel.x += (dirX * maxSpeed - this.vel.x) * k;
-    this.vel.z += (dirZ * maxSpeed - this.vel.z) * k;
+    const rate = (hasInput ? v.accelRate : v.brakeRate) * slip;
+    if (dashing && hasInput) {
+      const ex = dirX * maxSpeed - this.vel.x;
+      const ez = dirZ * maxSpeed - this.vel.z;
+      // 현재 진행 방향 축(정지 상태면 입력 방향)으로 분해
+      const s2 = Math.hypot(this.vel.x, this.vel.z);
+      const ax = s2 > 1 ? this.vel.x / s2 : dirX;
+      const az = s2 > 1 ? this.vel.z / s2 : dirZ;
+      const par = ex * ax + ez * az;
+      const kF = 1 - Math.exp(-rate * dt);
+      const kS = 1 - Math.exp(-rate * DASH_STEER * dt);
+      // 진행 축 가속만 전속(kF), 감속·직교(방향 전환)는 감쇠(kS) — 넓은 회전 유지
+      const kPar = par > 0 ? kF : kS;
+      this.vel.x += ax * par * kPar + (ex - ax * par) * kS;
+      this.vel.z += az * par * kPar + (ez - az * par) * kS;
+    } else {
+      const k = 1 - Math.exp(-rate * (dashing ? DASH_STEER : 1) * dt);
+      this.vel.x += (dirX * maxSpeed - this.vel.x) * k;
+      this.vel.z += (dirZ * maxSpeed - this.vel.z) * k;
+    }
 
     // 점프·중력
     const gh = this.world.groundHeight(this.pos.x, this.pos.z);
-    if (this.grounded && input.justPressed('Space') && this.time >= this.stunnedUntil) {
+    if (this.grounded && input.justPressed('Space') && this.time >= this.stunnedUntil && !this.locked) {
       this.vel.y = v.jumpVel;
       this.grounded = false;
       this.audio?.play('jump');

@@ -23,6 +23,7 @@ import { AudioSys } from '../core/audio.js';
 import { setupWalkAnimation, addOutline } from './walkanim.js';
 import { NavMap } from './navmap.js';
 import { ArrowGuide } from './arrow.js';
+import { WindFX } from './windfx.js';
 import { Traffic } from './traffic.js';
 import { Signals } from './signals.js';
 
@@ -122,6 +123,7 @@ export class Game {
     this.obstacles = new ObstacleManager(this.world, this.scene, this.player, this);
     this.navMap = new NavMap(); // FR-20 네비게이션
     this.arrow = new ArrowGuide(this.scene); // FR-33 (§15.1) 3D 안내 화살표
+    this.windfx = new WindFX(this.scene); // FR-51 (§17.5) 대시 바람 이펙트
     this.audio = new AudioSys();
     this.player.audio = this.audio;
 
@@ -378,13 +380,15 @@ export class Game {
       // 차량 GLB 3종 모두 앞머리(핸들바)가 -x — 진행 방향(+z)으로 90° 정렬
       vehicle.rotation.y = Math.PI / 2;
       holder.add(vehicle);
-      // 탑승 자세: 킥보드는 발판에 서고, 자전거·스쿠터는 안장 착좌 (앉기 클립과 세트 튜닝)
+      // 탑승 자세: 킥보드는 발판에 서고, 자전거·스쿠터는 안장 착좌 (앉기 클립과 세트 튜닝).
+      // x = §17.4 (FR-50) 좌우 정렬 보정 — 자전거·스쿠터 GLB는 사이드스탠드가 bbox
+      // 중심을 왜곡해 안장선이 중심 밖. 후방 시점 스크린샷 실측값
       const pose = {
-        kickboard: { y: 0.14, z: -0.05, rx: 0 },
-        bicycle: { y: 0.33, z: 0.1, rx: -0.06 },
-        scooter: { y: 0.30, z: 0.22, rx: -0.06 },
+        kickboard: { x: 0, y: 0.14, z: -0.05, rx: 0 },
+        bicycle: { x: -0.24, y: 0.33, z: 0.1, rx: -0.06 },
+        scooter: { x: -0.24, y: 0.30, z: 0.22, rx: -0.06 },
       }[vehicleKey];
-      hero.position.set(0, pose.y, pose.z);
+      hero.position.set(pose.x, pose.y, pose.z);
       hero.rotation.x = pose.rx;
       holder.add(hero);
     }
@@ -659,6 +663,7 @@ export class Game {
   onCarHit(fx, fz) {
     const p = this.player;
     if (this.state !== 'playing') return;
+    if (this.codeMatch) return; // §17.7 (FR-53) 코드 매칭 중 무적
     if (p.time < (p.carHitCooldownUntil ?? 0)) return;
     p.carHitCooldownUntil = p.time + 1.2;
     p.flashUntil = p.time + 0.6;
@@ -720,6 +725,10 @@ export class Game {
         this.pauseGame();
       } else {
         this._hadLock = locked;
+        // §17.7 (FR-53) 수령 코드 매칭 중 이동 잠금 + 무적 — 종료 즉시 해제
+        const cmLock = !!this.codeMatch;
+        this.player.locked = cmLock;
+        this.player.invulnerable = cmLock;
         this.player.update(dt, this.input, this.cam.yaw);
         if (this.input.justPressed('KeyQ')) this.drinkEnergy();
         // 코드 매칭 중엔 1~4·E를 미니게임이 가져간다 (게임 자체는 계속 진행 — §12.5)
@@ -760,6 +769,7 @@ export class Game {
     if (this.state !== 'paused') {
       this.updateHeroAnim(dt);
       this.updateHitFlash();
+      this.windfx.update(dt, this.player);
       this.peds?.update(dt);
       // §15.4 차량은 상시 주행, 충돌 판정은 플레이 중에만. §16.2 신호 주기 상시 순환
       this.signals?.update(dt);

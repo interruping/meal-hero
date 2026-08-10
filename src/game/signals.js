@@ -15,7 +15,8 @@ import { tex, sharedMat } from './textures.js';
 // 배치 원칙 (피드백 반영):
 // - 신호등 헤드는 Meshy 3D 모델 (텍스처 박스 금지 피드백): 차량등은 한국식
 //   가로형 3구 헤드를 5m 마스트+수평 암으로 차로 위에 매달고 양방향 각각
-//   정면 헤드(등을 맞댄 2기), 보행등은 세로 2칸 헤드를 별도 낮은 기둥에 축 정렬
+//   정면 헤드(등을 맞댄 2기), 보행등은 세로 2칸 헤드를 4모서리 전부에 축 정렬
+//   배치해 각 횡단보도 양단 커버 (§17.2 FR-48 — 마스트 모서리는 기둥 병설)
 // - 등화 상태는 모델 소켓 위 자발광 오버레이(원반·픽토그램)의 가시성 토글 —
 //   베이크드 텍스처는 상태 전환이 불가하기 때문. 렌즈면은 레이캐스트 실측 밀착
 // - 횡단보도·정지선은 도로와 같은 방식으로 지형에 정합(버텍스 스냅)
@@ -113,9 +114,12 @@ export class Signals {
         // 차량등 마스트 2기 (대각 모서리): +모서리는 세로 골목 차로 위, −모서리는 가로 골목 차로 위
         this.mast(cx, cz, +1, true);
         this.mast(cx, cz, -1, false);
-        // 보행등 기둥 2기 (남은 대각 모서리) — 헤드는 골목 축에 정렬
+        // 보행등: 모서리 4곳 전부 — 각 횡단보도 양단 커버 (§17.2 FR-48).
+        // 마스트가 선 대각 모서리 2곳은 별도 기둥 없이 마스트 기둥에 병설
         this.pedSignal(cx, cz, +1, -1);
         this.pedSignal(cx, cz, -1, +1);
+        this.pedSignal(cx, cz, +1, +1, false);
+        this.pedSignal(cx, cz, -1, -1, false);
       }
     }
     this.lastState = null;
@@ -209,15 +213,18 @@ export class Signals {
     }
   }
 
-  // 보행자 신호등: 낮은 별도 기둥 + 골목 축에 정렬된 세로 2칸 헤드 2기
-  // (한 기둥이 인접 두 횡단보도를 각각 정면으로 담당)
-  pedSignal(cx, cz, sx, sz) {
+  // 보행자 신호등: 골목 축에 정렬된 세로 2칸 헤드 2기 (한 모서리가 인접 두
+  // 횡단보도의 이쪽 끝을 각각 정면으로 담당 — 4모서리 전부 설치해 양단 커버).
+  // withPole=false면 별도 기둥 생략(차량 마스트 기둥에 병설 — §17.2)
+  pedSignal(cx, cz, sx, sz, withPole = true) {
     const px = cx + sx * CORNER;
     const pz = cz + sz * CORNER;
     const base = H(px, pz);
-    const pole = new THREE.Mesh(this.geo.pedPole, this.poleMat);
-    pole.position.set(px, base + 1.3, pz);
-    this.group.add(pole);
+    if (withPole) {
+      const pole = new THREE.Mesh(this.geo.pedPole, this.poleMat);
+      pole.position.set(px, base + 1.3, pz);
+      this.group.add(pole);
+    }
     const bottomY = base + 2.62 - this.pedSize.y; // 헤드 상단을 기둥 꼭대기에 정렬
     // h1: x축을 따라 걷는 보행자를 바라봄 = 세로 골목('z' 주행)을 건너는 횡단보도 담당
     const h1 = this.pedHeadUnit('z');
