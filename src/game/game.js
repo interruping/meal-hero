@@ -562,12 +562,12 @@ export class Game {
     );
   }
 
-  // ── 튜토리얼 (FR-32 §14.6) ─────────────────
-  // 4단계: 수락(1~4) → 픽업(E+코드) → 네비(M 홀드) → 전달(E).
-  // 실제 조작 수행을 감지해 다음 단계로. 진행 중 스테이지·의뢰 타이머 정지
+  // ── 튜토리얼 (FR-32 §14.6 + FR-56 §18.3) ─────────────────
+  // 6단계: 수락(1~4) → 픽업(E+코드) → 대시(Shift) → 네비(M 홀드) → 전달(E) → 드링크(Q).
+  // 전부 실제 조작 수행을 감지해 다음 단계로. 진행 중 스테이지·의뢰 타이머 정지
 
   startTutorial() {
-    this.tutorial = { step: 0, mHold: 0 };
+    this.tutorial = { step: 0, mHold: 0, drinkUsed: false };
     this.ui.tutorialGuide(0,
       '상단 의뢰 슬롯에서 <b>[1~4]</b> 키를 눌러<br>배달 의뢰를 수락해보세요', '#hud-offers');
   }
@@ -575,6 +575,7 @@ export class Game {
   updateTutorial(dt) {
     const t = this.tutorial;
     const d = this.delivery;
+    const p = this.player;
     if (t.step === 0 && d.active.length > 0) {
       t.step = 1;
       this.ui.tutorialGuide(1,
@@ -582,18 +583,33 @@ export class Game {
     } else if (t.step === 1 && d.active.some((a) => a.phase === 'carry')) {
       t.step = 2;
       this.ui.tutorialGuide(2,
+        '이동 중 <b>[Shift]</b>를 눌러 대시!<br>3초간 크게 가속합니다 (쿨타임 10초)', '#skill-dash');
+    } else if (t.step === 2 && p.isDashing) {
+      t.step = 3;
+      this.ui.tutorialGuide(3,
         '<b>[M]</b>을 1초 이상 길게 눌러<br>네비게이션으로 배달 루트를 확인해보세요', '#navphone');
-    } else if (t.step === 2) {
+    } else if (t.step === 3) {
       if (this._navOpen) t.mHold += dt;
       if (t.mHold >= 1) {
-        t.step = 3;
-        this.ui.tutorialGuide(3,
-          '지도의 색깔 마커가 목적지!<br>빌라 현관 앞에서 <b>[E]</b>로 전달하면 완료', '#hud-active');
+        t.step = 4;
+        this.ui.tutorialGuide(4,
+          '지도의 색깔 마커가 목적지!<br>빌라 현관 앞에서 <b>[E]</b>로 전달하면 보수 지급', '#hud-active');
       }
-    } else if (t.step === 3 && this.stage_.deliveries > 0) {
+    } else if (t.step === 4 && this.stage_.deliveries > 0) {
+      t.step = 5;
+      // §18.3 드링크 전제 보장 (§13 확정): 쿨타임이 다 지났으면 다시 부여.
+      // 대시 중·쿨타임 중이면 그대로 둔다 (자연히 조건 충족)
+      if (p.time >= (p.dashReadyAt ?? 0)) {
+        p.dashUntil = p.time;
+        p.dashReadyAt = p.time + DASH_COOLDOWN;
+      }
+      this.ui.tutorialGuide(5,
+        '<b>[Q]</b> 에너지 드링크 (₩1,500) —<br>대시 쿨타임이 즉시 초기화됩니다', '#skill-drink');
+    } else if (t.step === 5 && t.drinkUsed) {
       this.tutorial = null;
       this.ui.tutorialGuide(null);
-      this.ui.toast('튜토리얼 완료! 지금부터 10분 타이머 시작', 2600);
+      this.stage_.revenue += DRINK_COST; // §13 확정: 튜토리얼 드링크 값 환급
+      this.ui.toast('튜토리얼 완료! 드링크 값은 회사가 쐈다 (+₩1,500) — 지금부터 10분 타이머 시작', 2800);
     }
   }
 
@@ -661,6 +677,7 @@ export class Game {
     }
     this.stage_.revenue -= DRINK_COST;
     p.resetDashCooldown();
+    if (this.tutorial) this.tutorial.drinkUsed = true; // §18.3 드링크 단계 실사용 감지
     this.ui.toast(`에너지 드링크! 대시 쿨타임 초기화 (-₩${DRINK_COST.toLocaleString()})`, 1500);
     this.audio.play('pickup');
   }

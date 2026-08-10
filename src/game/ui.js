@@ -589,7 +589,7 @@ export class UI {
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-title" style="font-size:26px">튜토리얼을 할까요?</div>
-        <div class="mh-sub" style="margin:8px 0">배달 수락부터 전달까지 4단계로 안내합니다 (진행 중 타이머 정지)</div>
+        <div class="mh-sub" style="margin:8px 0">배달 수락부터 대시·드링크까지 6단계로 안내합니다 (진행 중 타이머 정지)</div>
         <div style="margin-top:14px">
           <button class="mh-btn primary" id="btn-tut-yes">예, 배워볼게요</button>
           <button class="mh-btn" id="btn-tut-no">아니오, 바로 시작</button>
@@ -612,7 +612,7 @@ export class UI {
     }
     dim.style.display = 'block';
     panel.style.display = 'block';
-    panel.innerHTML = `<div class="t-step">튜토리얼 ${step + 1} / 4</div>${text}`;
+    panel.innerHTML = `<div class="t-step">튜토리얼 ${step + 1} / 6</div>${text}`;
     if (targetSel) this.root.querySelector(targetSel)?.classList.add('tut-glow');
   }
 
