@@ -17,6 +17,7 @@ const SFX = {
   skill: 'sfx-skill.mp3',
   glass: 'sfx-glass.mp3', // §19.2 과속 충돌 파손 (유리 깨짐)
   horn: 'sfx-horn.mp3', // §19.4 차량 니어미스 경적
+  thud: 'sfx-thud.mp3', // §20.2 대시 넉백 "쿵" 타격
   voiceSafe: 'voice-safe.mp3', // §19.1 정답 "안전히 배달해주세요~"
   voiceWrong: 'voice-wrong.mp3', // §19.1 오답 "기사님 잘못 가져가셨어요~!"
   voiceEnjoy: 'voice-enjoy.mp3', // §19.3 전달 "맛있게 드세요"

@@ -24,6 +24,7 @@ import { setupWalkAnimation, addOutline } from './walkanim.js';
 import { NavMap } from './navmap.js';
 import { ArrowGuide } from './arrow.js';
 import { WindFX } from './windfx.js';
+import { ImpactFX } from './impactfx.js';
 import { Traffic } from './traffic.js';
 import { Signals } from './signals.js';
 
@@ -129,6 +130,7 @@ export class Game {
     this.navMap = new NavMap(); // FR-20 네비게이션
     this.arrow = new ArrowGuide(this.scene); // FR-33 (§15.1) 3D 안내 화살표
     this.windfx = new WindFX(this.scene); // FR-51 (§17.5) 대시 바람 이펙트
+    this.impactfx = new ImpactFX(this.scene); // FR-65 (§20.2) 대시 넉백 "쿵" 스타버스트
     this.audio = new AudioSys();
     this.player.audio = this.audio;
 
@@ -170,7 +172,7 @@ export class Game {
     });
     // §15.4 (FR-36) 차도 주행 차량 — 주차 차량과 같은 Meshy 모델 재사용
     this.traffic = new Traffic(this.scene, this.world, { sedan: parkedSedan, truck: parkedTruck },
-      (car, fx, fz) => this.onCarHit(fx, fz), this.signals,
+      (car, fx, fz) => this.onCarHit(car, fx, fz), this.signals,
       () => this.audio.play('horn')); // §19.4 (FR-62) 니어미스 경적
     this.applySeason('spring');
     this.models = { hero, bag, kickboard, bicycle, scooter };
@@ -691,10 +693,17 @@ export class Game {
   }
 
   // §15.4 (FR-36) 차에 치임: 즉시 하트 1 + 진행 방향으로 코믹하게 튕겨나감
-  onCarHit(fx, fz) {
+  onCarHit(car, fx, fz) {
     const p = this.player;
     if (this.state !== 'playing') return;
     if (this.codeMatch) return; // §17.7 (FR-53) 코드 매칭 중 무적
+    // §20.2 (FR-65) 대시 중엔 차가 받쳐 날아간다 — 플레이어 무피해·속도 유지 관통
+    if (p.isDashing) {
+      this.traffic.knock(car, p.vel);
+      this.dashImpact(car.model.position.clone().setY(car.model.position.y + 1.2));
+      this.ui.toast('쿵!! 차를 받아버렸다', 1400);
+      return;
+    }
     if (p.time < (p.carHitCooldownUntil ?? 0)) return;
     p.carHitCooldownUntil = p.time + 1.2;
     p.flashUntil = p.time + 0.6;
@@ -704,6 +713,13 @@ export class Game {
     this.ui.toast('빵빵!! 무자비한 차에 치였다 (-체력 1)', 1800);
     this.ui.damageFlash(); // §19.2 플래시 재사용 (§13 확정)
     this.damage(1, 'crash');
+  }
+
+  // §20.2 (FR-65) 대시 넉백 "쿵" 임팩트 — 흔들림 + 스타버스트 + 타격음
+  dashImpact(pos) {
+    this.cam.shake(0.9, 0.4);
+    this.impactfx.spawn(pos);
+    this.audio.play('thud');
   }
 
   damage(n, cause) {
@@ -802,6 +818,7 @@ export class Game {
       this.updateHeroAnim(dt);
       this.updateHitFlash();
       this.windfx.update(dt, this.player);
+      this.impactfx.update(dt);
       this.peds?.update(dt);
       // §15.4 차량은 상시 주행, 충돌 판정은 플레이 중에만. §16.2 신호 주기 상시 순환
       this.signals?.update(dt);

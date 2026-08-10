@@ -13,7 +13,7 @@
   - [4 Chiptunes (Adventure)](https://opengameart.org/content/4-chiptunes-adventure) → 봄(Stage 1)·가을(Stage 2)
   - 원본 wav/ogg를 ffmpeg로 mp3(VBR q5) 변환
 - 효과음 (`assets/audio/sfx-*.mp3`): [Kenney](https://kenney.nl/) 오디오 팩 — **CC0**
-  - Interface Sounds(수락·부저·오답·게임오버), Casino Audio(돈소리·영수증·픽업·점프·스킬), Impact Sounds(피격·과속 충돌·유리 파손), 일부는 ffmpeg amix로 2음원 합성 (정산·게임오버)
+  - Interface Sounds(수락·부저·오답·게임오버), Casino Audio(돈소리·영수증·픽업·점프·스킬), Impact Sounds(피격·과속 충돌·유리 파손·대시 넉백 타격), 일부는 ffmpeg amix로 2음원 합성 (정산·게임오버)
   - 예외: 니어미스 경적(`sfx-horn.mp3`)은 ffmpeg 사인파 합성으로 자체 제작 (외부 에셋 아님)
 
 ## 라이브러리

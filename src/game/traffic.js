@@ -46,6 +46,19 @@ export class Traffic {
     car.speed = CAR_SPEED;
   }
 
+  // §20.2 (FR-65) 대시 충돌: 차가 받쳐 포물선으로 날아간 뒤 맵 밖에서 재진입.
+  // 넉백 방향은 플레이어 진행 방향 — knocked 동안 주행·충돌 판정 없음(= 재발 쿨다운)
+  knock(car, playerVel) {
+    const s = Math.hypot(playerVel.x, playerVel.z) || 1;
+    car.knocked = {
+      vx: (playerVel.x / s) * 14,
+      vz: (playerVel.z / s) * 14,
+      vy: 7.5,
+      spin: (Math.random() < 0.5 ? -1 : 1) * (6 + Math.random() * 4),
+      t: 1.6,
+    };
+  }
+
   // §16.2 다음 정지선까지 진행 방향 거리 (이미 지난 선·교차로 내부는 무시)
   nextStopDist(car) {
     let best = Infinity;
@@ -60,6 +73,23 @@ export class Traffic {
   update(dt, player, playing) {
     const H = this.world.groundHeight;
     for (const car of this.cars) {
+      // §20.2 넉백 비행 — 포물선 + 스핀, 만료 시 맵 밖 재진입
+      if (car.knocked) {
+        const k = car.knocked;
+        k.t -= dt;
+        k.vy -= 22 * dt;
+        car.model.position.x += k.vx * dt;
+        car.model.position.z += k.vz * dt;
+        car.model.position.y += k.vy * dt;
+        car.model.rotation.y += k.spin * dt;
+        car.model.rotation.z = Math.min(0.55, (1.6 - k.t) * 0.45); // 기우뚱
+        if (k.t <= 0) {
+          car.knocked = null;
+          car.model.rotation.z = 0;
+          this.respawn(car);
+        }
+        continue;
+      }
       // 자기 축이 빨간불이면 정지선 앞 급정거, 녹색이면 최고속 복귀 — 그 외 무브레이크
       const go = this.signals ? this.signals.carsGo(car.axis) : true;
       if (!go) {
