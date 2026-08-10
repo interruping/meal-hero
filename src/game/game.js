@@ -10,7 +10,7 @@ import { DeliveryManager, MAX_ACTIVE, DELIVERY_COLORS_CSS } from './delivery.js'
 import { ObstacleManager } from './obstacles.js';
 import {
   STAGES, MAX_HP, TOTAL_DEBT, STAGE_TIME, SEASON_DAYS,
-  BONUS_TIME_RATIO, BONUS_MULT, LATE_FEE, DRINK_COST, OBSTACLE_INFO,
+  BONUS_TIME_RATIO, BONUS_MULT, LATE_FEE, DRINK_COST, OBSTACLE_INFO, SAFE_MULT,
 } from './stages.js';
 import { DASH_COOLDOWN } from './player.js';
 import { ModelViewer } from './modelview.js';
@@ -27,11 +27,11 @@ import { WindFX } from './windfx.js';
 import { Traffic } from './traffic.js';
 import { Signals } from './signals.js';
 
-const SAVE_KEY = 'mealhero-save-v2'; // §12 경제 개편으로 세이브 포맷 리셋
+const SAVE_KEY = 'mealhero-save-v3'; // §18.2 빚 6,000만 상향으로 세이브 포맷 리셋
 
 const OPENING_LINES = [
   '2026년 봄. 사업이 망했다.',
-  '남은 것은 빚 2,000만 원과 튼튼한 두 다리뿐.',
+  '남은 것은 빚 6,000만 원과 튼튼한 두 다리뿐.',
   '「Meal Hero」 — 가입만 하면 누구나 오늘부터 배달 히어로!',
   '…가입 완료. 봄부터 겨울까지, 1년 안에 다 갚는다.',
 ];
@@ -238,6 +238,7 @@ export class Game {
 
   loadSave() {
     try {
+      localStorage.removeItem('mealhero-save-v2'); // §18.2 구버전(빚 2,000만) 세이브 폐기
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const s = JSON.parse(raw);
@@ -274,7 +275,12 @@ export class Game {
   startStage(idx) {
     this.stageIdx = idx;
     this.stageCfg = STAGES[idx];
-    this.stage_ = { revenue: 0, fees: 0, deliveries: 0, hp: MAX_HP, timeLeft: STAGE_TIME };
+    // §18.2 (FR-55) 하루 최소 목표 = 남은 빚 ÷ 남은 계절 수 ÷ 120일 (표시·동기부여 전용)
+    const dailyGoal = Math.ceil(this.career.debt / (STAGES.length - idx) / SEASON_DAYS);
+    this.stage_ = {
+      revenue: 0, fees: 0, deliveries: 0, hp: MAX_HP, timeLeft: STAGE_TIME,
+      dailyGoal, safeBroken: false,
+    };
     this.codeMatch = null;
     this.tutorial = null; // §14.6 재시작·재진입 시 튜토리얼 상태 해제
     this.ui.tutorialGuide(null);
@@ -556,12 +562,12 @@ export class Game {
     );
   }
 
-  // ── 튜토리얼 (FR-32 §14.6) ─────────────────
-  // 4단계: 수락(1~4) → 픽업(E+코드) → 네비(M 홀드) → 전달(E).
-  // 실제 조작 수행을 감지해 다음 단계로. 진행 중 스테이지·의뢰 타이머 정지
+  // ── 튜토리얼 (FR-32 §14.6 + FR-56 §18.3) ─────────────────
+  // 6단계: 수락(1~4) → 픽업(E+코드) → 대시(Shift) → 네비(M 홀드) → 전달(E) → 드링크(Q).
+  // 전부 실제 조작 수행을 감지해 다음 단계로. 진행 중 스테이지·의뢰 타이머 정지
 
   startTutorial() {
-    this.tutorial = { step: 0, mHold: 0 };
+    this.tutorial = { step: 0, mHold: 0, drinkUsed: false };
     this.ui.tutorialGuide(0,
       '상단 의뢰 슬롯에서 <b>[1~4]</b> 키를 눌러<br>배달 의뢰를 수락해보세요', '#hud-offers');
   }
@@ -569,6 +575,7 @@ export class Game {
   updateTutorial(dt) {
     const t = this.tutorial;
     const d = this.delivery;
+    const p = this.player;
     if (t.step === 0 && d.active.length > 0) {
       t.step = 1;
       this.ui.tutorialGuide(1,
@@ -576,18 +583,35 @@ export class Game {
     } else if (t.step === 1 && d.active.some((a) => a.phase === 'carry')) {
       t.step = 2;
       this.ui.tutorialGuide(2,
+        '이동 중 <b>[Shift]</b>를 눌러 대시!<br>3초간 크게 가속합니다 (쿨타임 10초)', '#skill-dash');
+    } else if (t.step === 2 && p.isDashing) {
+      t.step = 3;
+      this.ui.tutorialGuide(3,
         '<b>[M]</b>을 1초 이상 길게 눌러<br>네비게이션으로 배달 루트를 확인해보세요', '#navphone');
-    } else if (t.step === 2) {
+    } else if (t.step === 3) {
       if (this._navOpen) t.mHold += dt;
       if (t.mHold >= 1) {
-        t.step = 3;
-        this.ui.tutorialGuide(3,
-          '지도의 색깔 마커가 목적지!<br>빌라 현관 앞에서 <b>[E]</b>로 전달하면 완료', '#hud-active');
+        t.step = 4;
+        this.ui.tutorialGuide(4,
+          '지도의 색깔 마커가 목적지!<br>빌라 현관 앞에서 <b>[E]</b>로 전달하면 보수 지급', '#hud-active');
       }
-    } else if (t.step === 3 && this.stage_.deliveries > 0) {
-      this.tutorial = null;
-      this.ui.tutorialGuide(null);
-      this.ui.toast('튜토리얼 완료! 지금부터 10분 타이머 시작', 2600);
+    } else if (t.step === 4 && this.stage_.deliveries > 0) {
+      t.step = 5;
+      this.ui.tutorialGuide(5,
+        '<b>[Q]</b> 에너지 드링크 (₩1,500) —<br>대시 쿨타임이 즉시 초기화됩니다', '#skill-drink');
+    } else if (t.step === 5) {
+      // §18.3 드링크 전제 상시 보장 (§13 확정): 단계에 머무는 동안 쿨타임이
+      // 다 지나버리면 재부여 — Q가 언제 눌려도 사용 가능 (대시 중만 예외)
+      if (!t.drinkUsed && p.time >= (p.dashReadyAt ?? 0)) {
+        p.dashUntil = p.time;
+        p.dashReadyAt = p.time + DASH_COOLDOWN;
+      }
+      if (t.drinkUsed) {
+        this.tutorial = null;
+        this.ui.tutorialGuide(null);
+        this.stage_.revenue += DRINK_COST; // §13 확정: 튜토리얼 드링크 값 환급
+        this.ui.toast('튜토리얼 완료! 드링크 값은 회사가 쐈다 (+₩1,500) — 지금부터 10분 타이머 시작', 2800);
+      }
     }
   }
 
@@ -655,6 +679,7 @@ export class Game {
     }
     this.stage_.revenue -= DRINK_COST;
     p.resetDashCooldown();
+    if (this.tutorial) this.tutorial.drinkUsed = true; // §18.3 드링크 단계 실사용 감지
     this.ui.toast(`에너지 드링크! 대시 쿨타임 초기화 (-₩${DRINK_COST.toLocaleString()})`, 1500);
     this.audio.play('pickup');
   }
@@ -789,6 +814,14 @@ export class Game {
     const d = this.delivery;
     // §14.1 좌하단 스킬 UI 상태: 대시 쿨타임 게이지 + 드링크 사용 가능 여부
     const p = this.player;
+    // §18.2 (FR-55) 일일 목표 게이지: SAFE(최소 × 1.3) 최초 돌파 시 축하 1회
+    const net = this.stage_.revenue - this.stage_.fees;
+    if (!this.stage_.safeBroken && net >= this.stage_.dailyGoal * SAFE_MULT) {
+      this.stage_.safeBroken = true;
+      this.ui.goalCelebrate();
+      this.audio.play('bonus');
+    }
+    this.ui.updateGoal(net, this.stage_.dailyGoal, SAFE_MULT, this.stage_.safeBroken);
     const dashActive = p.time < (p.dashUntil ?? 0);
     const cdLeft = dashActive ? 0 : Math.max(0, (p.dashReadyAt ?? 0) - p.time);
     this.ui.updateHUD({
@@ -802,7 +835,7 @@ export class Game {
       offers: d.slots,
       active: d.active,
       full: d.active.length >= MAX_ACTIVE,
-      playerPos: p.pos,
+      nearestIdx: d.nearestIdx ?? -1, // §18.1 뱃지·단가 동기 (delivery 산출)
       skill: {
         dashActive,
         cdLeft,

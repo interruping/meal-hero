@@ -97,6 +97,10 @@ const CSS = `
 .offer-slot .key { display: inline-block; background: #3a3a38; color: #efeeea; font-size: 12px;
   padding: 0 5px; margin-right: 4px; }
 .offer-slot .o-pay { color: #b5372f; }
+/* §18.1 (FR-54) 만료 임박 단가 급등: 굵게 + 펄스 확대 (뱃지·TTL 바와 별개 강조) */
+.offer-slot .o-pay.surge { display: inline-block; font-weight: bold; color: #7e2620;
+  background: #e5c6cd; padding: 0 3px; animation: pay-surge 0.45s ease-in-out infinite; }
+@keyframes pay-surge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.22); } }
 /* FR-29 (§14.3) 플레이어→가게 거리 + 최근접 뱃지 */
 .offer-slot .o-dist { float: right; color: #4a4a46; }
 .offer-slot .o-near { position: absolute; top: -9px; right: -5px; background: #b5372f;
@@ -185,10 +189,59 @@ body.nav-open #app > canvas { filter: blur(7px) brightness(0.9); }
   padding: 1px 8px; margin-bottom: 6px; }
 .cm-receipt .cm-code { font-size: 19px; letter-spacing: 2px; color: #3a3a38; margin-top: 6px;
   border-top: 1px dashed #9a9a96; padding-top: 7px; }
+/* §18.4 (FR-57) 접수증 20% 확대 — 우하단 고정 origin이라 영수증·바 쪽으로 안 밀림 */
 #codematch .cm-mine { position: absolute; right: 26px; bottom: 26px; width: 190px;
   background: #efeeea; border: 3px solid #b5372f; padding: 12px 10px; text-align: center;
-  transform: rotate(-3deg); box-shadow: 5px 5px 0 rgba(58,58,56,0.55); font-size: 13px; }
-#codematch .cm-mine .cm-code { font-size: 22px; letter-spacing: 3px; color: #b5372f; margin: 6px 0; }
+  transform: rotate(-3deg) scale(1.2); transform-origin: bottom right;
+  box-shadow: 5px 5px 0 rgba(58,58,56,0.55); font-size: 13px; }
+/* §18.4 내 주문코드 후광 — 은은한 맥동 글로우 (3초 안에 대조 기준 즉시 포착) */
+#codematch .cm-mine .cm-code { font-size: 22px; letter-spacing: 3px; color: #b5372f; margin: 6px 0;
+  animation: code-halo 1.1s ease-in-out infinite; }
+@keyframes code-halo {
+  0%, 100% { text-shadow: 0 0 4px rgba(201,161,59,0.35); }
+  50% { text-shadow: 0 0 7px rgba(201,161,59,0.95), 0 0 16px rgba(229,198,205,0.9),
+    0 0 26px rgba(201,161,59,0.55); }
+}
+/* §18.2 (FR-55) 일일 목표 게이지: 우측 세로 스트립 — 하트·시계 아래, 표시 전용.
+   빨간선 = 하루 최소 목표, 그 위 SAFE선(×1.3). 근접 시 글로우, SAFE 돌파 시 금테 유지 */
+#hud-goal { position: absolute; right: 12px; top: 50%; transform: translateY(-46%);
+  height: 44%; display: flex; gap: 5px; align-items: stretch; }
+#hud-goal .g-track { width: 20px; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
+  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); position: relative; overflow: visible; }
+#hud-goal .g-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+  background: linear-gradient(180deg, #c9a13b, #b5372f); transition: height 0.3s; }
+#hud-goal .g-line { position: absolute; left: -4px; right: -4px; height: 0;
+  border-top: 2px solid; }
+#hud-goal .g-line span { position: absolute; right: 24px; top: -8px; font-size: 11px;
+  white-space: nowrap; background: rgba(246,245,241,0.92); padding: 0 3px;
+  border: 1px solid #3a3a38; }
+#hud-goal .g-min { border-color: #b5372f; color: #b5372f; }
+#hud-goal .g-safe { border-color: #5f7a55; color: #5f7a55; }
+#hud-goal .g-cap { writing-mode: vertical-rl; font-size: 11px; color: #4a4a46;
+  background: rgba(246,245,241,0.92); border: 1px solid #3a3a38; padding: 6px 1px;
+  text-align: center; letter-spacing: 1px; align-self: center; }
+/* 근접(최소 목표 80%↑): 게이지가 화려해진다 — 악센트 글로우 맥동 */
+#hud-goal.near .g-track { animation: goal-glow 0.8s ease-in-out infinite; }
+@keyframes goal-glow {
+  0%, 100% { box-shadow: 3px 3px 0 rgba(58,58,56,0.45), 0 0 4px 1px rgba(201,161,59,0.5); }
+  50% { box-shadow: 3px 3px 0 rgba(58,58,56,0.45), 0 0 14px 4px rgba(201,161,59,0.95); }
+}
+/* SAFE 돌파 유지 상태: 금테 + 채움 금색 */
+#hud-goal.safe .g-track { border-color: #c9a13b; }
+#hud-goal.safe .g-fill { background: linear-gradient(180deg, #efeeea, #c9a13b); }
+#hud-goal.safe .g-cap { border-color: #c9a13b; color: #8a6d1e; font-weight: bold; }
+/* SAFE 돌파 순간 1회: 화면 플래시 + 컨페티 낙하 (과한 축하 — §18.2) */
+#goal-flash { position: absolute; inset: 0; background: #efeeea; opacity: 0;
+  pointer-events: none; z-index: 8; }
+#goal-flash.on { animation: goal-flash 0.5s ease-out; }
+@keyframes goal-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+.goal-confetti { position: absolute; top: -14px; width: 9px; height: 13px;
+  pointer-events: none; z-index: 8; opacity: 0;
+  animation: confetti-fall var(--t) ease-in var(--d) forwards; }
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(var(--r)); opacity: 0.9; }
+}
 /* 비둘기 시야 방해: 화면(앞유리)에 부딪힌 비둘기 + 잔류 깃털 */
 .pigeon-splat { position: absolute; left: 50%; top: 50%; width: min(46vmin, 380px);
   image-rendering: pixelated; pointer-events: none; z-index: 5;
@@ -259,6 +312,15 @@ export class UI {
             <div class="s-cd"></div>
           </div>
         </div>
+        <div id="hud-goal">
+          <div class="g-track">
+            <div class="g-fill"></div>
+            <div class="g-line g-safe"><span></span></div>
+            <div class="g-line g-min"><span></span></div>
+          </div>
+          <div class="g-cap">오늘 목표</div>
+        </div>
+        <div id="goal-flash"></div>
         <div id="hud-hint" class="hud-panel"></div>
         <div id="arrow-label"></div>
         <div id="hud-banner"></div>
@@ -363,7 +425,7 @@ export class UI {
           <img id="title-logo" src="${import.meta.env.BASE_URL}generated/logo-title.png"
             alt="MEAL HERO : delivery simulator"
             style="width:400px; max-width:100%; display:block; margin:0 auto; image-rendering:pixelated">
-          <p class="mh-sub">빚 2,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
+          <p class="mh-sub">빚 6,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
           <div style="margin-top:16px"><button class="mh-btn primary" id="btn-start">배달 시작</button>${continueBtn}</div>
           <div style="margin-top:6px">
             <button class="mh-btn" id="btn-controls">조작 방법</button>
@@ -536,7 +598,7 @@ export class UI {
     const s = this.screen(`
       <div class="mh-panel">
         <div class="mh-title" style="font-size:26px">튜토리얼을 할까요?</div>
-        <div class="mh-sub" style="margin:8px 0">배달 수락부터 전달까지 4단계로 안내합니다 (진행 중 타이머 정지)</div>
+        <div class="mh-sub" style="margin:8px 0">배달 수락부터 대시·드링크까지 6단계로 안내합니다 (진행 중 타이머 정지)</div>
         <div style="margin-top:14px">
           <button class="mh-btn primary" id="btn-tut-yes">예, 배워볼게요</button>
           <button class="mh-btn" id="btn-tut-no">아니오, 바로 시작</button>
@@ -559,7 +621,7 @@ export class UI {
     }
     dim.style.display = 'block';
     panel.style.display = 'block';
-    panel.innerHTML = `<div class="t-step">튜토리얼 ${step + 1} / 4</div>${text}`;
+    panel.innerHTML = `<div class="t-step">튜토리얼 ${step + 1} / 6</div>${text}`;
     if (targetSel) this.root.querySelector(targetSel)?.classList.add('tut-glow');
   }
 
@@ -582,7 +644,7 @@ export class UI {
 
   setHudVisible(v) { this.hud.style.display = v ? 'block' : 'none'; if (!v) this.hideHint(); }
 
-  updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full, playerPos, skill }) {
+  updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full, nearestIdx, skill }) {
     this.el('#hud-money').innerHTML =
       `매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br><b>순수익 ₩${(revenue - fees).toLocaleString()}</b>`;
     // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
@@ -615,16 +677,9 @@ export class UI {
       `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
     clock.classList.toggle('low', stageTimeLeft <= 60);
 
-    // 의뢰 슬롯 4개 (FR-19) + 플레이어→가게 거리·최근접 뱃지 (FR-29 §14.3)
+    // 의뢰 슬롯 4개 (FR-19) + 거리·최근접 뱃지 (FR-29) + 동적 단가 (FR-54)
+    // 거리·최근접·단가는 delivery.update()가 산출 — 뱃지와 단가가 항상 동기
     if (!this._slotEls) this._slotEls = [...this.root.querySelectorAll('.offer-slot')];
-    let nearestIdx = -1;
-    let nearestDist = Infinity;
-    const dists = offers.map((offer, i) => {
-      if (!offer || !playerPos) return null;
-      const d = Math.hypot(playerPos.x - offer.shop.pos.x, playerPos.z - offer.shop.pos.z);
-      if (d < nearestDist) { nearestDist = d; nearestIdx = i; } // 동률은 앞 슬롯 우선
-      return d;
-    });
     offers.forEach((offer, i) => {
       const el = this._slotEls[i];
       el.classList.toggle('empty', !offer);
@@ -632,12 +687,17 @@ export class UI {
       el.classList.toggle('nearest', i === nearestIdx);
       if (offer) {
         el.querySelector('.o-route').textContent = `${offer.shop.name} → ${offer.door.name}`;
-        el.querySelector('.o-pay').textContent = `₩${offer.pay.toLocaleString()}`;
-        el.querySelector('.o-dist').textContent = dists[i] != null ? `${Math.round(dists[i])}m` : '';
+        const payEl = el.querySelector('.o-pay');
+        payEl.textContent = `₩${offer.pay.toLocaleString()}`;
+        payEl.classList.toggle('surge', !!offer.surge);
+        el.querySelector('.o-dist').textContent =
+          offer.playerDist != null ? `${Math.round(offer.playerDist)}m` : '';
         el.querySelector('.o-ttl i').style.width = `${(offer.ttl / OFFER_TTL) * 100}%`;
       } else {
         el.querySelector('.o-route').textContent = '의뢰 대기';
-        el.querySelector('.o-pay').textContent = '';
+        const payEl = el.querySelector('.o-pay');
+        payEl.textContent = '';
+        payEl.classList.remove('surge');
         el.querySelector('.o-dist').textContent = '';
       }
     });
@@ -660,6 +720,46 @@ export class UI {
       row.querySelector('.a-sec').textContent = `${Math.ceil(d.timeLeft)}초`;
       row.classList.toggle('low', d.timeLeft < 8);
     }
+  }
+
+  // §18.2 (FR-55) 일일 목표 게이지 — 스케일 상한 = SAFE선 × 1.15 (돌파 후 여유 표시)
+  updateGoal(net, min, safeMult, safeBroken) {
+    const g = this.el('#hud-goal');
+    const scale = min * safeMult * 1.15;
+    if (this._goalMin !== min) {
+      this._goalMin = min;
+      const minEl = g.querySelector('.g-min');
+      const safeEl = g.querySelector('.g-safe');
+      minEl.style.bottom = `${(min / scale) * 100}%`;
+      safeEl.style.bottom = `${(1 / 1.15) * 100}%`;
+      minEl.querySelector('span').textContent = `최소 ₩${min.toLocaleString()}`;
+      safeEl.querySelector('span').textContent = 'SAFE';
+    }
+    g.querySelector('.g-fill').style.height =
+      `${Math.max(0, Math.min(1, net / scale)) * 100}%`;
+    g.classList.toggle('near', net >= min * 0.8);
+    g.classList.toggle('safe', !!safeBroken);
+  }
+
+  // SAFE 최초 돌파 1회: 화면 플래시 + 컨페티 낙하 + 배너 (§18.2 과한 축하)
+  goalCelebrate() {
+    const flash = this.el('#goal-flash');
+    flash.classList.remove('on');
+    void flash.offsetWidth; // 애니메이션 재시작
+    flash.classList.add('on');
+    const colors = ['#b5372f', '#c9a13b', '#4f6d8f', '#5f7a55', '#e5c6cd', '#efeeea'];
+    for (let i = 0; i < 44; i++) {
+      const c = document.createElement('div');
+      c.className = 'goal-confetti';
+      c.style.left = `${Math.random() * 100}%`;
+      c.style.background = colors[i % colors.length];
+      c.style.setProperty('--t', `${1.2 + Math.random()}s`);
+      c.style.setProperty('--d', `${Math.random() * 0.35}s`);
+      c.style.setProperty('--r', `${(Math.random() < 0.5 ? -1 : 1) * (360 + Math.random() * 360)}deg`);
+      this.hud.appendChild(c);
+      setTimeout(() => c.remove(), 3200);
+    }
+    this.banner('오늘 목표 <b style="color:#c9a13b">SAFE</b> 돌파! 이대로만 가자', 2000);
   }
 
   // §15.1 (FR-33) 화살표 대상 라벨: x/y는 #ui(=캔버스) 좌표계 px

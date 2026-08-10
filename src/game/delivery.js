@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { DELIVERY_PAY } from './stages.js';
+import { DELIVERY_PAY, NEAR_PAY, SURGE_ADD, SURGE_WINDOW } from './stages.js';
 
 // FR-19 다중 배달 (§12.1): 상단 의뢰 슬롯 4개 — 랜덤 노출, 10초 미수락 시 소멸,
 // 1~4 키 수락, 동시 진행 최대 3건. 제한 시간은 수락 시점의
@@ -81,8 +81,8 @@ export class DeliveryManager {
     const shop = pool[Math.floor(Math.random() * pool.length)];
     const door = this.world.doors[Math.floor(Math.random() * this.world.doors.length)];
     const dist = shop.pos.distanceTo(door.pos);
-    // §12.3 건당 고정 보수 — 속도 상승 = 처리량 상승이 수입 증가를 만든다
-    this.slots[i] = { id: ++this._seq, shop, door, dist, pay: DELIVERY_PAY, ttl: OFFER_TTL };
+    // §18.1 (FR-54) 단가는 동적 — 최근접·급등 여부에 따라 update()가 매 프레임 갱신
+    this.slots[i] = { id: ++this._seq, shop, door, dist, pay: DELIVERY_PAY, surge: false, ttl: OFFER_TTL };
   }
 
   acceptSlot(i, vehicle) {
@@ -160,6 +160,25 @@ export class DeliveryManager {
         this.slotCooldown[i] -= dt;
         if (this.slotCooldown[i] <= 0) this.spawnOffer(i);
       }
+    }
+
+    // §18.1 (FR-54) 동적 단가: 최근접 뱃지 슬롯 3,000원·나머지 5,000원,
+    // TTL 1초 이하부터 소멸까지 +2,000 급등. 수락은 아래에서 처리되므로
+    // 수락 시점 {...offer} 복사에 이 프레임의 표기 단가가 그대로 잠긴다
+    this.nearestIdx = -1;
+    let nearestDist = Infinity;
+    for (let i = 0; i < NUM_SLOTS; i++) {
+      const offer = this.slots[i];
+      if (!offer) continue;
+      const d = Math.hypot(this.player.pos.x - offer.shop.pos.x, this.player.pos.z - offer.shop.pos.z);
+      offer.playerDist = d;
+      if (d < nearestDist) { nearestDist = d; this.nearestIdx = i; } // 동률은 앞 슬롯 우선
+    }
+    for (let i = 0; i < NUM_SLOTS; i++) {
+      const offer = this.slots[i];
+      if (!offer) continue;
+      offer.surge = offer.ttl <= SURGE_WINDOW;
+      offer.pay = (i === this.nearestIdx ? NEAR_PAY : DELIVERY_PAY) + (offer.surge ? SURGE_ADD : 0);
     }
 
     // 1~4 수락 (수령 코드 매칭 중엔 game이 acceptKeys를 꺼서 키를 넘긴다)
