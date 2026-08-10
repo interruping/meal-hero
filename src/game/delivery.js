@@ -7,10 +7,9 @@ import { DELIVERY_PAY, NEAR_PAY, SURGE_ADD, SURGE_WINDOW } from './stages.js';
 const INTERACT_DIST = 3.2;
 const DETOUR_COEF = 1.7; // 직선거리 → 골목 우회 보정
 const TIME_BUFFER = 8; // 초
-// §20.1 (FR-64) 겨울(slippery) 제한 시간 보정 — 자동 조향 실측에서 명목 대비
-// 실효 속도가 가을 0.97 vs 겨울 0.63 (미끄럼 관성 + 방해 4종 + 신호 대기).
-// 비율 0.97/0.63 ≈ 1.5를 거리항에만 적용 (버퍼는 고정 오버헤드). 스테이지 1~3 무변경
-const WINTER_TIME_MULT = 1.5;
+// §20.1 (FR-64) 제한 시간 스테이지별 보정 — stage.timeMult를 거리항에만 적용
+// (버퍼는 고정 오버헤드). 근거: 자동 조향 실측 실효/명목 비율 + 유저 실플레이 피드백.
+// 계수 자체는 stages.js에 데이터로 (여름 1.15 / 가을 1.25 / 겨울 1.65)
 export const NUM_SLOTS = 4;
 export const MAX_ACTIVE = 3;
 export const OFFER_TTL = 10;
@@ -103,7 +102,7 @@ export class DeliveryManager {
     this.slotCooldown[i] = this.refillDelay(this._stage);
     const approach = this.player.pos.distanceTo(offer.shop.pos);
     let travel = ((approach + offer.dist) * DETOUR_COEF) / vehicle.maxSpeed;
-    if (this._stage?.slippery) travel *= WINTER_TIME_MULT; // §20.1 (FR-64)
+    travel *= this._stage?.timeMult ?? 1; // §20.1 (FR-64)
     const limit = travel + TIME_BUFFER;
     const used = new Set(this.active.map((d) => d.colorIdx));
     const colorIdx = [0, 1, 2].find((c) => !used.has(c));

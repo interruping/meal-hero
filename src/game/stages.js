@@ -11,12 +11,14 @@ export const STAGES = [
     id: 2, season: 'summer', vehicle: 'kickboard',
     orderGap: 2.2,
     obstacles: ['flyer', 'kid'],
+    timeMult: 1.15, // §20.1 유저 실플레이 완화 (9차 후속)
     intro: '여름 — 킥보드 입수! 발보다 빠르고, 사고도 빠르다.',
   },
   {
     id: 3, season: 'autumn', vehicle: 'bicycle',
     orderGap: 2,
     obstacles: ['flyer', 'kid', 'pigeon'],
+    timeMult: 1.25,
     intro: '가을 — 자전거로 업그레이드. 낙엽길 조심.',
   },
   {
@@ -24,6 +26,7 @@ export const STAGES = [
     orderGap: 1.8,
     obstacles: ['flyer', 'kid', 'pigeon', 'drunk'],
     slippery: true,
+    timeMult: 1.65, // 실측 1.5 + 실플레이 여유
     intro: '겨울 — 스쿠터 최종 진화. 눈길, 취객, 마지막 상환.',
   },
 ];
