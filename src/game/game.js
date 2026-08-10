@@ -597,19 +597,21 @@ export class Game {
       }
     } else if (t.step === 4 && this.stage_.deliveries > 0) {
       t.step = 5;
-      // §18.3 드링크 전제 보장 (§13 확정): 쿨타임이 다 지났으면 다시 부여.
-      // 대시 중·쿨타임 중이면 그대로 둔다 (자연히 조건 충족)
-      if (p.time >= (p.dashReadyAt ?? 0)) {
+      this.ui.tutorialGuide(5,
+        '<b>[Q]</b> 에너지 드링크 (₩1,500) —<br>대시 쿨타임이 즉시 초기화됩니다', '#skill-drink');
+    } else if (t.step === 5) {
+      // §18.3 드링크 전제 상시 보장 (§13 확정): 단계에 머무는 동안 쿨타임이
+      // 다 지나버리면 재부여 — Q가 언제 눌려도 사용 가능 (대시 중만 예외)
+      if (!t.drinkUsed && p.time >= (p.dashReadyAt ?? 0)) {
         p.dashUntil = p.time;
         p.dashReadyAt = p.time + DASH_COOLDOWN;
       }
-      this.ui.tutorialGuide(5,
-        '<b>[Q]</b> 에너지 드링크 (₩1,500) —<br>대시 쿨타임이 즉시 초기화됩니다', '#skill-drink');
-    } else if (t.step === 5 && t.drinkUsed) {
-      this.tutorial = null;
-      this.ui.tutorialGuide(null);
-      this.stage_.revenue += DRINK_COST; // §13 확정: 튜토리얼 드링크 값 환급
-      this.ui.toast('튜토리얼 완료! 드링크 값은 회사가 쐈다 (+₩1,500) — 지금부터 10분 타이머 시작', 2800);
+      if (t.drinkUsed) {
+        this.tutorial = null;
+        this.ui.tutorialGuide(null);
+        this.stage_.revenue += DRINK_COST; // §13 확정: 튜토리얼 드링크 값 환급
+        this.ui.toast('튜토리얼 완료! 드링크 값은 회사가 쐈다 (+₩1,500) — 지금부터 10분 타이머 시작', 2800);
+      }
     }
   }
 
