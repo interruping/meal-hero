@@ -74,7 +74,11 @@ export class DeliveryManager {
   }
 
   spawnOffer(i) {
-    const shop = this.world.shops[Math.floor(Math.random() * this.world.shops.length)];
+    // §17.3 (FR-49) 다른 슬롯에 노출 중인 가게 제외 — 같은 가게 의뢰 동시 노출 금지.
+    // 진행 중(active) 배달의 가게와는 중복 허용. 가게 14곳 ≥ 슬롯 4개라 풀은 항상 남는다
+    const used = new Set(this.slots.filter(Boolean).map((o) => o.shop));
+    const pool = this.world.shops.filter((s) => !used.has(s));
+    const shop = pool[Math.floor(Math.random() * pool.length)];
     const door = this.world.doors[Math.floor(Math.random() * this.world.doors.length)];
     const dist = shop.pos.distanceTo(door.pos);
     // §12.3 건당 고정 보수 — 속도 상승 = 처리량 상승이 수입 증가를 만든다
