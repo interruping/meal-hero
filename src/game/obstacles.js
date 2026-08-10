@@ -8,6 +8,37 @@ import { sharedMat } from './textures.js';
 
 const STREETS = [-66, -33, 0, 33, 66];
 
+// §20.2 (FR-65) 대시 넉백 초기 상태 — 플레이어 진행 방향 포물선 + 회전.
+// knocked 상태 자체가 재발 쿨다운 (비행·기절 중엔 접촉 판정 없음)
+function launchKnock(player) {
+  const s = Math.hypot(player.vel.x, player.vel.z) || 1;
+  return {
+    phase: 'fly',
+    vx: (player.vel.x / s) * 9,
+    vz: (player.vel.z / s) * 9,
+    vy: 7,
+    spin: 9 + Math.random() * 5,
+    t: 0,
+  };
+}
+
+// 넉백 비행 공통 적분 — 착지(접지)하면 true 반환
+function stepKnockFly(k, pos, model, world, dt) {
+  k.vy -= 20 * dt;
+  pos.x += k.vx * dt;
+  pos.z += k.vz * dt;
+  pos.y += k.vy * dt;
+  model.rotation.x += k.spin * dt;
+  model.position.copy(pos);
+  const gh = world.groundHeight(pos.x, pos.z);
+  if (pos.y <= gh && k.vy < 0) {
+    pos.y = gh;
+    model.position.y = gh;
+    return true;
+  }
+  return false;
+}
+
 // 전단지 배포 알바생: 접근하면 전단지를 "발사"한다 — 맞으면 이동 속도 감소 (§6 판정 소형)
 class FlyerWorker {
   constructor(model, pos, game, throwPaper) {
@@ -41,6 +72,34 @@ class FlyerWorker {
     this.throwCooldown -= dt;
     this.moveSpeed = 0;
     const d = player.pos.distanceTo(this.pos);
+
+    // §20.2 (FR-65) 넉백: 비행 → 착지 벌러덩 기절 → 일어나 복귀
+    if (this.knocked) {
+      const k = this.knocked;
+      if (k.phase === 'fly') {
+        if (stepKnockFly(k, this.pos, this.model, this.game.world, dt)) {
+          k.phase = 'down';
+          k.t = 2.2;
+          this.model.rotation.x = -Math.PI / 2; // 벌러덩
+        }
+      } else {
+        k.t -= dt;
+        if (k.t <= 0) {
+          this.knocked = null;
+          this.model.rotation.x = 0;
+          this.chaseTime = 0;
+          this.rested = true;
+          this.chaseCooldownUntil = this.time + 3;
+        }
+      }
+      return;
+    }
+    // §20.2 대시 중 몸통 박치기 — 알바생이 받쳐 날아간다
+    if (player.isDashing && d < 1.2) {
+      this.knocked = launchKnock(player);
+      this.game.dashImpact(this.pos.clone().setY(this.pos.y + 1.2));
+      return;
+    }
 
     // 추적: 5m 안에서 발견하면 1m 거리까지 따라붙음, 최대 10초 (명중 후 5초는 쉼)
     const chasing = this.rested && this.time >= this.chaseCooldownUntil
@@ -159,8 +218,8 @@ class PaperPool {
       const dx = p.mesh.position.x - player.pos.x;
       const dy = p.mesh.position.y - (player.pos.y + 1);
       const dz = p.mesh.position.z - player.pos.z;
-      // §17.7 (FR-53) 코드 매칭 중 무적 — 전단지가 그냥 통과
-      if (!player.invulnerable && dx * dx + dy * dy + dz * dz < 0.55 * 0.55) {
+      // §17.7 (FR-53) 코드 매칭 중 무적 + §20.2 (FR-65) 대시 중 무효 — 전단지가 그냥 통과
+      if (!player.invulnerable && !player.isDashing && dx * dx + dy * dy + dz * dz < 0.55 * 0.55) {
         p.life = 0;
         p.mesh.visible = false;
         player.applySlowdown(1.6);
@@ -202,6 +261,16 @@ class KidRider {
 
   update(dt, player, game) {
     if (!this.active) return;
+    // §20.2 (FR-65) 넉백 비행 — 착지하면 퇴장 (다음 스폰 주기에 재등장)
+    if (this.knocked) {
+      if (stepKnockFly(this.knocked, this.pos, this.model, this.world, dt)) {
+        this.knocked = null;
+        this.active = false;
+        this.model.visible = false;
+        this.model.rotation.x = 0;
+      }
+      return;
+    }
     this.pos.x += this.vel.x * dt;
     this.pos.z += this.vel.z * dt;
     this.pos.y = this.world.groundHeight(this.pos.x, this.pos.z);
@@ -213,7 +282,14 @@ class KidRider {
       return;
     }
     const d = player.pos.distanceTo(this.pos);
-    if (d < 1.3 && this.hitCooldown <= 0 && !player.invulnerable) {
+    if (d < 1.3 && this.hitCooldown <= 0) {
+      // §20.2 대시 중이면 초딩이 자전거째 받쳐 날아간다 — 플레이어 무피해
+      if (player.isDashing) {
+        this.knocked = launchKnock(player);
+        game.dashImpact(this.pos.clone().setY(this.pos.y + 1.1));
+        return;
+      }
+      if (player.invulnerable) return;
       this.hitCooldown = 2;
       player.applyStun(1.2);
       game.damage(1, 'kid');
@@ -254,21 +330,38 @@ class PigeonFlock {
       if (player.pos.distanceTo(this.spot) < 3.5) {
         this.state = 'flying';
         this.timer = 0;
-        this.game.onObstacleHit('pigeon', {});
+        // §20.2 (FR-65) 대시 돌파 — 시야 방해 없이 새들만 강하게 받쳐 흩어진다
+        if (player.isDashing) {
+          this.knocked = true;
+          this.game.dashImpact(this.spot.clone().setY(this.spot.y + 1));
+        } else {
+          this.game.onObstacleHit('pigeon', {});
+        }
       }
     } else if (this.state === 'flying') {
       this.timer += dt;
-      // 플레이어(카메라) 쪽으로 퍼덕이며 상승
       this.models.forEach((m, i) => {
-        const toPlayer = player.pos.clone().sub(m.position).normalize();
-        m.position.y += dt * (3 + i * 0.4);
-        m.position.x += toPlayer.x * dt * 2 + Math.sin(this.timer * 20 + i) * dt * 2;
-        m.position.z += toPlayer.z * dt * 2;
-        m.rotation.z = Math.sin(this.timer * 25 + i) * 0.5;
+        if (this.knocked) {
+          // §20.2 넉백: spot 기준 방사형으로 강 튕김 + 급상승
+          const off = this.offsets[i];
+          const len = Math.hypot(off.x, off.z) || 1;
+          m.position.y += dt * (7 + i * 0.8);
+          m.position.x += (off.x / len) * dt * 9 + Math.sin(this.timer * 30 + i) * dt * 2;
+          m.position.z += (off.z / len) * dt * 9;
+          m.rotation.z = Math.sin(this.timer * 35 + i) * 0.8;
+        } else {
+          // 플레이어(카메라) 쪽으로 퍼덕이며 상승
+          const toPlayer = player.pos.clone().sub(m.position).normalize();
+          m.position.y += dt * (3 + i * 0.4);
+          m.position.x += toPlayer.x * dt * 2 + Math.sin(this.timer * 20 + i) * dt * 2;
+          m.position.z += toPlayer.z * dt * 2;
+          m.rotation.z = Math.sin(this.timer * 25 + i) * 0.5;
+        }
       });
-      if (this.timer > 1.6) {
+      if (this.timer > (this.knocked ? 1.0 : 1.6)) {
         this.state = 'gone';
         this.timer = 0;
+        this.knocked = false;
         this.models.forEach((m) => { m.visible = false; });
       }
     } else {
@@ -298,6 +391,26 @@ class Drunk {
   update(dt, player) {
     this.time += dt;
     this.cooldown -= dt;
+    // §20.2 (FR-65) 넉백: 비행 → 착지 벌러덩 기절 → 일어나 배회 재개
+    if (this.knocked) {
+      const k = this.knocked;
+      if (k.phase === 'fly') {
+        if (stepKnockFly(k, this.pos, this.model, this.world, dt)) {
+          k.phase = 'down';
+          k.t = 2.2;
+          this.model.rotation.x = -Math.PI / 2;
+          this.model.rotation.z = 0;
+        }
+      } else {
+        k.t -= dt;
+        if (k.t <= 0) {
+          this.knocked = null;
+          this.model.rotation.x = 0;
+          this.cooldown = 1;
+        }
+      }
+      return;
+    }
     this.mixer?.update(dt);
     // 지그재그: 헤딩이 사인파로 흔들림
     this.heading += Math.sin(this.time * 1.3) * dt * 2.2 + (Math.random() - 0.5) * dt * 2;
@@ -326,7 +439,14 @@ class Drunk {
     this.model.position.copy(this.pos);
     this.model.rotation.y = this.heading;
     this.model.rotation.z = Math.sin(this.time * 2.1) * 0.12; // 비틀비틀
-    if (d < 1.4 && this.cooldown <= 0 && !player.invulnerable) {
+    if (d < 1.4 && this.cooldown <= 0) {
+      // §20.2 대시 중이면 취객이 받쳐 날아간다 — 조작 반전·피해 없음
+      if (player.isDashing) {
+        this.knocked = launchKnock(player);
+        this.game.dashImpact(this.pos.clone().setY(this.pos.y + 1.2));
+        return;
+      }
+      if (player.invulnerable) return;
       this.cooldown = 3;
       player.applyReverse(2.5);
       this.game.damage(1, 'drunk');

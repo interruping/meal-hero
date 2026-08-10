@@ -7,7 +7,7 @@
 | 도구 | 사용량 | 잔여/한도 |
 |---|---|---|
 | Meshy.ai | **918 크레딧** (모델 27종 + 행인 10×2세대 + 리깅·애니메이션 + 난간 재시도 30 + 신호등 헤드 30) | 182 / 1,100 |
-| OpenRouter gpt-image-2 | **$0.51** (85장 × low $0.006) | $20 한도 (gpt-audio와 공유) |
+| OpenRouter gpt-image-2 | **$0.52** (86장 × low $0.006) | $20 한도 (gpt-audio와 공유) |
 | OpenRouter gpt-audio-mini | **$0.002** (보이스 4클립, 오디오 출력 601토큰 × $2.4/M) | 〃 |
 
 ## 개발 도구
@@ -191,3 +191,14 @@ FR-41 신호등이 "텍스처 씌운 박스" 티가 난다는 피드백 — 헤�
 소켓 위 자발광 오버레이(차량등: 좌적/우녹 원반, 보행등: 위 빨강 서있는 / 아래 초록
 걷는 픽토그램 — 기존 prop-signal-ped.png 아틀라스 재사용)의 가시성 토글로 구현.
 prop-signal-car.png 아틀라스는 모델 교체로 미사용 전환 (파일은 기록용 유지).
+
+## gpt-image-2 — 9차 확장: 대시 넉백 임팩트 스프라이트 (2026-08-10)
+
+FR-65 (§20.2) "쿵" 임팩트용 1장, low($0.006) 1발 성공 — 누적 **$0.52** (86장).
+
+| 파일 | 용도 | 프롬프트 요약 |
+|---|---|---|
+| fx-impact-star.png (게임은 256² 다운스케일본 사용) | 대시 넉백 충돌 스타버스트 빌보드 | comic impact starburst, golden yellow center, jagged dark outline, chunky pixel art, black background |
+
+검정 배경으로 생성해 additive 블렌딩(THREE.Sprite)으로 합성 — 알파 추출 불필요, 발광 룩 덤.
+타격 SFX(sfx-thud)는 Kenney Impact Sounds CC0 impactPunch_heavy_004에 ffmpeg 저역 부스트(`CREDITS.md`).
