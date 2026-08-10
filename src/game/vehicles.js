@@ -32,9 +32,9 @@ export const VEHICLES = {
     label: '스쿠터',
     speedMult: 2,
     maxSpeed: 13,
-    accelRate: 3.4, // §17.6 코너링 응답 +30% (2.6 → 3.4)
-    brakeRate: 4,
-    turnRate: 6.5, // 몸 방향이 이동 방향을 따라오게 시각 정렬 (5 → 6.5)
+    accelRate: 4.1, // §17.6 +30% (2.6→3.4) 후 9차 유저 피드백 코너링 +20% (3.4→4.1)
+    brakeRate: 5, // 9차 유저 피드백 브레이크 +25% (4→5)
+    turnRate: 7.8, // 몸 방향 시각 정렬 — 코너링 응답과 비례 유지 (6.5→7.8)
     jumpVel: 9,
   },
 };
