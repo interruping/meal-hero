@@ -342,6 +342,9 @@ export class Game {
   beginPlay() {
     this.ui.clearScreen();
     this.state = 'playing';
+    // 정산·인트로 화면에서 풀린 포인터록이 "락 상실 = Esc" 오판으로 이어져
+    // 스테이지 전환 직후 일시정지가 뜨는 버그 방지 — 락 요청은 비동기라 리셋 필수
+    this._hadLock = false;
     this.ui.setHudVisible(true);
     this.input.requestPointerLock();
     this.audio.startBGM(this.stageCfg.season);
