@@ -10,7 +10,7 @@ import { DeliveryManager, MAX_ACTIVE, DELIVERY_COLORS_CSS } from './delivery.js'
 import { ObstacleManager } from './obstacles.js';
 import {
   STAGES, MAX_HP, TOTAL_DEBT, STAGE_TIME, SEASON_DAYS,
-  BONUS_TIME_RATIO, BONUS_MULT, LATE_FEE, DRINK_COST, OBSTACLE_INFO,
+  BONUS_TIME_RATIO, BONUS_MULT, LATE_FEE, DRINK_COST, OBSTACLE_INFO, SAFE_MULT,
 } from './stages.js';
 import { DASH_COOLDOWN } from './player.js';
 import { ModelViewer } from './modelview.js';
@@ -27,11 +27,11 @@ import { WindFX } from './windfx.js';
 import { Traffic } from './traffic.js';
 import { Signals } from './signals.js';
 
-const SAVE_KEY = 'mealhero-save-v2'; // §12 경제 개편으로 세이브 포맷 리셋
+const SAVE_KEY = 'mealhero-save-v3'; // §18.2 빚 6,000만 상향으로 세이브 포맷 리셋
 
 const OPENING_LINES = [
   '2026년 봄. 사업이 망했다.',
-  '남은 것은 빚 2,000만 원과 튼튼한 두 다리뿐.',
+  '남은 것은 빚 6,000만 원과 튼튼한 두 다리뿐.',
   '「Meal Hero」 — 가입만 하면 누구나 오늘부터 배달 히어로!',
   '…가입 완료. 봄부터 겨울까지, 1년 안에 다 갚는다.',
 ];
@@ -238,6 +238,7 @@ export class Game {
 
   loadSave() {
     try {
+      localStorage.removeItem('mealhero-save-v2'); // §18.2 구버전(빚 2,000만) 세이브 폐기
       const raw = localStorage.getItem(SAVE_KEY);
       if (!raw) return null;
       const s = JSON.parse(raw);
@@ -274,7 +275,12 @@ export class Game {
   startStage(idx) {
     this.stageIdx = idx;
     this.stageCfg = STAGES[idx];
-    this.stage_ = { revenue: 0, fees: 0, deliveries: 0, hp: MAX_HP, timeLeft: STAGE_TIME };
+    // §18.2 (FR-55) 하루 최소 목표 = 남은 빚 ÷ 남은 계절 수 ÷ 120일 (표시·동기부여 전용)
+    const dailyGoal = Math.ceil(this.career.debt / (STAGES.length - idx) / SEASON_DAYS);
+    this.stage_ = {
+      revenue: 0, fees: 0, deliveries: 0, hp: MAX_HP, timeLeft: STAGE_TIME,
+      dailyGoal, safeBroken: false,
+    };
     this.codeMatch = null;
     this.tutorial = null; // §14.6 재시작·재진입 시 튜토리얼 상태 해제
     this.ui.tutorialGuide(null);
@@ -789,6 +795,14 @@ export class Game {
     const d = this.delivery;
     // §14.1 좌하단 스킬 UI 상태: 대시 쿨타임 게이지 + 드링크 사용 가능 여부
     const p = this.player;
+    // §18.2 (FR-55) 일일 목표 게이지: SAFE(최소 × 1.3) 최초 돌파 시 축하 1회
+    const net = this.stage_.revenue - this.stage_.fees;
+    if (!this.stage_.safeBroken && net >= this.stage_.dailyGoal * SAFE_MULT) {
+      this.stage_.safeBroken = true;
+      this.ui.goalCelebrate();
+      this.audio.play('bonus');
+    }
+    this.ui.updateGoal(net, this.stage_.dailyGoal, SAFE_MULT, this.stage_.safeBroken);
     const dashActive = p.time < (p.dashUntil ?? 0);
     const cdLeft = dashActive ? 0 : Math.max(0, (p.dashReadyAt ?? 0) - p.time);
     this.ui.updateHUD({

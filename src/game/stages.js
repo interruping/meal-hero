@@ -1,5 +1,5 @@
-// FR-5 스테이지 구성 (§5) + §12 경제 개편.
-// 스테이지당 제한 10분 — 10분 순수익 × 120일(한 계절 분기)로 정산해 빚 2,000만원을 갚는다.
+// FR-5 스테이지 구성 (§5) + §12 경제 개편 + §18.2 빚 상향.
+// 스테이지당 제한 10분 — 10분 순수익 × 120일(한 계절 분기)로 정산해 빚 6,000만원을 갚는다.
 export const STAGES = [
   {
     id: 1, season: 'spring', vehicle: 'run',
@@ -48,7 +48,8 @@ export const OBSTACLE_INFO = {
   },
 };
 
-export const TOTAL_DEBT = 20_000_000; // §12.4 전체 빚
+export const TOTAL_DEBT = 60_000_000; // §18.2 전체 빚 (2,000만 → 6,000만 상향)
+export const SAFE_MULT = 1.3; // §18.2 목표 게이지 SAFE선 = 하루 최소 목표 × 1.3
 export const STAGE_TIME = 600; // §12.4 스테이지 제한 10분 (초)
 export const SEASON_DAYS = 120; // 정산 환산: 한 계절 분기 = 120일
 export const DELIVERY_PAY = 5_000; // §12.3 배달 건당 기본 보수

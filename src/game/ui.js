@@ -193,6 +193,46 @@ body.nav-open #app > canvas { filter: blur(7px) brightness(0.9); }
   background: #efeeea; border: 3px solid #b5372f; padding: 12px 10px; text-align: center;
   transform: rotate(-3deg); box-shadow: 5px 5px 0 rgba(58,58,56,0.55); font-size: 13px; }
 #codematch .cm-mine .cm-code { font-size: 22px; letter-spacing: 3px; color: #b5372f; margin: 6px 0; }
+/* §18.2 (FR-55) 일일 목표 게이지: 우측 세로 스트립 — 하트·시계 아래, 표시 전용.
+   빨간선 = 하루 최소 목표, 그 위 SAFE선(×1.3). 근접 시 글로우, SAFE 돌파 시 금테 유지 */
+#hud-goal { position: absolute; right: 12px; top: 50%; transform: translateY(-46%);
+  height: 44%; display: flex; gap: 5px; align-items: stretch; }
+#hud-goal .g-track { width: 20px; background: rgba(246,245,241,0.96); border: 2px solid #3a3a38;
+  box-shadow: 3px 3px 0 rgba(58,58,56,0.45); position: relative; overflow: visible; }
+#hud-goal .g-fill { position: absolute; left: 0; right: 0; bottom: 0; height: 0%;
+  background: linear-gradient(180deg, #c9a13b, #b5372f); transition: height 0.3s; }
+#hud-goal .g-line { position: absolute; left: -4px; right: -4px; height: 0;
+  border-top: 2px solid; }
+#hud-goal .g-line span { position: absolute; right: 24px; top: -8px; font-size: 11px;
+  white-space: nowrap; background: rgba(246,245,241,0.92); padding: 0 3px;
+  border: 1px solid #3a3a38; }
+#hud-goal .g-min { border-color: #b5372f; color: #b5372f; }
+#hud-goal .g-safe { border-color: #5f7a55; color: #5f7a55; }
+#hud-goal .g-cap { writing-mode: vertical-rl; font-size: 11px; color: #4a4a46;
+  background: rgba(246,245,241,0.92); border: 1px solid #3a3a38; padding: 6px 1px;
+  text-align: center; letter-spacing: 1px; align-self: center; }
+/* 근접(최소 목표 80%↑): 게이지가 화려해진다 — 악센트 글로우 맥동 */
+#hud-goal.near .g-track { animation: goal-glow 0.8s ease-in-out infinite; }
+@keyframes goal-glow {
+  0%, 100% { box-shadow: 3px 3px 0 rgba(58,58,56,0.45), 0 0 4px 1px rgba(201,161,59,0.5); }
+  50% { box-shadow: 3px 3px 0 rgba(58,58,56,0.45), 0 0 14px 4px rgba(201,161,59,0.95); }
+}
+/* SAFE 돌파 유지 상태: 금테 + 채움 금색 */
+#hud-goal.safe .g-track { border-color: #c9a13b; }
+#hud-goal.safe .g-fill { background: linear-gradient(180deg, #efeeea, #c9a13b); }
+#hud-goal.safe .g-cap { border-color: #c9a13b; color: #8a6d1e; font-weight: bold; }
+/* SAFE 돌파 순간 1회: 화면 플래시 + 컨페티 낙하 (과한 축하 — §18.2) */
+#goal-flash { position: absolute; inset: 0; background: #efeeea; opacity: 0;
+  pointer-events: none; z-index: 8; }
+#goal-flash.on { animation: goal-flash 0.5s ease-out; }
+@keyframes goal-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+.goal-confetti { position: absolute; top: -14px; width: 9px; height: 13px;
+  pointer-events: none; z-index: 8; opacity: 0;
+  animation: confetti-fall var(--t) ease-in var(--d) forwards; }
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(var(--r)); opacity: 0.9; }
+}
 /* 비둘기 시야 방해: 화면(앞유리)에 부딪힌 비둘기 + 잔류 깃털 */
 .pigeon-splat { position: absolute; left: 50%; top: 50%; width: min(46vmin, 380px);
   image-rendering: pixelated; pointer-events: none; z-index: 5;
@@ -263,6 +303,15 @@ export class UI {
             <div class="s-cd"></div>
           </div>
         </div>
+        <div id="hud-goal">
+          <div class="g-track">
+            <div class="g-fill"></div>
+            <div class="g-line g-safe"><span></span></div>
+            <div class="g-line g-min"><span></span></div>
+          </div>
+          <div class="g-cap">오늘 목표</div>
+        </div>
+        <div id="goal-flash"></div>
         <div id="hud-hint" class="hud-panel"></div>
         <div id="arrow-label"></div>
         <div id="hud-banner"></div>
@@ -367,7 +416,7 @@ export class UI {
           <img id="title-logo" src="${import.meta.env.BASE_URL}generated/logo-title.png"
             alt="MEAL HERO : delivery simulator"
             style="width:400px; max-width:100%; display:block; margin:0 auto; image-rendering:pixelated">
-          <p class="mh-sub">빚 2,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
+          <p class="mh-sub">빚 6,000만원, 두 다리, 그리고 사계절 — 서울 빌라촌 배달 러너</p>
           <div style="margin-top:16px"><button class="mh-btn primary" id="btn-start">배달 시작</button>${continueBtn}</div>
           <div style="margin-top:6px">
             <button class="mh-btn" id="btn-controls">조작 방법</button>
@@ -662,6 +711,46 @@ export class UI {
       row.querySelector('.a-sec').textContent = `${Math.ceil(d.timeLeft)}초`;
       row.classList.toggle('low', d.timeLeft < 8);
     }
+  }
+
+  // §18.2 (FR-55) 일일 목표 게이지 — 스케일 상한 = SAFE선 × 1.15 (돌파 후 여유 표시)
+  updateGoal(net, min, safeMult, safeBroken) {
+    const g = this.el('#hud-goal');
+    const scale = min * safeMult * 1.15;
+    if (this._goalMin !== min) {
+      this._goalMin = min;
+      const minEl = g.querySelector('.g-min');
+      const safeEl = g.querySelector('.g-safe');
+      minEl.style.bottom = `${(min / scale) * 100}%`;
+      safeEl.style.bottom = `${(1 / 1.15) * 100}%`;
+      minEl.querySelector('span').textContent = `최소 ₩${min.toLocaleString()}`;
+      safeEl.querySelector('span').textContent = 'SAFE';
+    }
+    g.querySelector('.g-fill').style.height =
+      `${Math.max(0, Math.min(1, net / scale)) * 100}%`;
+    g.classList.toggle('near', net >= min * 0.8);
+    g.classList.toggle('safe', !!safeBroken);
+  }
+
+  // SAFE 최초 돌파 1회: 화면 플래시 + 컨페티 낙하 + 배너 (§18.2 과한 축하)
+  goalCelebrate() {
+    const flash = this.el('#goal-flash');
+    flash.classList.remove('on');
+    void flash.offsetWidth; // 애니메이션 재시작
+    flash.classList.add('on');
+    const colors = ['#b5372f', '#c9a13b', '#4f6d8f', '#5f7a55', '#e5c6cd', '#efeeea'];
+    for (let i = 0; i < 44; i++) {
+      const c = document.createElement('div');
+      c.className = 'goal-confetti';
+      c.style.left = `${Math.random() * 100}%`;
+      c.style.background = colors[i % colors.length];
+      c.style.setProperty('--t', `${1.2 + Math.random()}s`);
+      c.style.setProperty('--d', `${Math.random() * 0.35}s`);
+      c.style.setProperty('--r', `${(Math.random() < 0.5 ? -1 : 1) * (360 + Math.random() * 360)}deg`);
+      this.hud.appendChild(c);
+      setTimeout(() => c.remove(), 3200);
+    }
+    this.banner('오늘 목표 <b style="color:#c9a13b">SAFE</b> 돌파! 이대로만 가자', 2000);
   }
 
   // §15.1 (FR-33) 화살표 대상 라벨: x/y는 #ui(=캔버스) 좌표계 px
