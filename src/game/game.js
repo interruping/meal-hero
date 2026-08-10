@@ -168,7 +168,8 @@ export class Game {
     });
     // §15.4 (FR-36) 차도 주행 차량 — 주차 차량과 같은 Meshy 모델 재사용
     this.traffic = new Traffic(this.scene, this.world, { sedan: parkedSedan, truck: parkedTruck },
-      (car, fx, fz) => this.onCarHit(fx, fz), this.signals);
+      (car, fx, fz) => this.onCarHit(fx, fz), this.signals,
+      () => this.audio.play('horn')); // §19.4 (FR-62) 니어미스 경적
     this.applySeason('spring');
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;

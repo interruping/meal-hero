@@ -12,13 +12,17 @@ const LANE = 0.7; // 진행 방향별 차선 오프셋 (차도 반폭 1.9 안)
 const COUNT = 6;
 const HIT_HALF_LEN = 2.4; // 차 로컬 충돌 반경 (길이/폭)
 const HIT_HALF_WID = 1.15;
+// §19.4 (FR-62) 니어미스: 차체 바운딩에서 1m 여유 존을 스치면 경적 (치임과 별개)
+const NEAR_MARGIN = 1.0;
+const NEAR_COOLDOWN = 2.5; // 같은 차량 연속 트리거 방지 (초)
 const BRAKE = 130; // 급정거 감속 (정지 거리 ≈ 5.9m — 정지선 간격 안)
 const ACCEL = 30; // 재출발 가속
 
 export class Traffic {
-  constructor(scene, world, models, onHit, signals = null) {
+  constructor(scene, world, models, onHit, signals = null, onNearMiss = null) {
     this.world = world;
     this.onHit = onHit;
+    this.onNearMiss = onNearMiss;
     this.signals = signals;
     this.group = new THREE.Group();
     this.group.name = 'traffic';
@@ -27,7 +31,7 @@ export class Traffic {
     for (let i = 0; i < COUNT; i++) {
       const model = (i % 3 === 2 ? models.truck : models.sedan).clone(true);
       this.group.add(model);
-      const car = { model, axis: 'z', line: 0, dir: 1, t: 0, speed: CAR_SPEED };
+      const car = { model, axis: 'z', line: 0, dir: 1, t: 0, speed: CAR_SPEED, hornCd: 0 };
       this.respawn(car, true);
       this.cars.push(car);
     }
@@ -88,8 +92,17 @@ export class Traffic {
       const across = dx * fz - dz * fx;
       const dy = player.pos.y - car.model.position.y;
       // 정지·서행(신호 대기) 중에는 무해 — 주행 중에만 치임
+      car.hornCd = Math.max(0, car.hornCd - dt);
       if (car.speed > 3 && Math.abs(along) < HIT_HALF_LEN && Math.abs(across) < HIT_HALF_WID && dy < 1.5) {
+        car.hornCd = NEAR_COOLDOWN; // 치인 직후 경적 억제 — 연출은 치임(§15.4+§19.2)이 담당
         this.onHit(car, fx, fz);
+      } else if (
+        // §19.4 (FR-62) 니어미스: 주행 차량이 충돌 박스 밖 1m 여유 존을 스칠 때 경적 1회
+        car.speed > 3 && car.hornCd <= 0 && dy < 1.5
+        && Math.abs(along) < HIT_HALF_LEN + NEAR_MARGIN && Math.abs(across) < HIT_HALF_WID + NEAR_MARGIN
+      ) {
+        car.hornCd = NEAR_COOLDOWN;
+        this.onNearMiss?.(car);
       }
     }
   }
