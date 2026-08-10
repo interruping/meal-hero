@@ -27,6 +27,8 @@ export class ArrowGuide {
       m.add(o);
       this.group.add(m);
     }
+    // §17.1 (FR-47) 캐릭터 발치 대비 과대 피드백 — 전체 0.8배 축소
+    this.group.scale.setScalar(0.8);
     scene.add(this.group);
     this._color = '';
   }
