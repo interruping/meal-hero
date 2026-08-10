@@ -97,6 +97,10 @@ const CSS = `
 .offer-slot .key { display: inline-block; background: #3a3a38; color: #efeeea; font-size: 12px;
   padding: 0 5px; margin-right: 4px; }
 .offer-slot .o-pay { color: #b5372f; }
+/* §18.1 (FR-54) 만료 임박 단가 급등: 굵게 + 펄스 확대 (뱃지·TTL 바와 별개 강조) */
+.offer-slot .o-pay.surge { display: inline-block; font-weight: bold; color: #7e2620;
+  background: #e5c6cd; padding: 0 3px; animation: pay-surge 0.45s ease-in-out infinite; }
+@keyframes pay-surge { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.22); } }
 /* FR-29 (§14.3) 플레이어→가게 거리 + 최근접 뱃지 */
 .offer-slot .o-dist { float: right; color: #4a4a46; }
 .offer-slot .o-near { position: absolute; top: -9px; right: -5px; background: #b5372f;
@@ -582,7 +586,7 @@ export class UI {
 
   setHudVisible(v) { this.hud.style.display = v ? 'block' : 'none'; if (!v) this.hideHint(); }
 
-  updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full, playerPos, skill }) {
+  updateHUD({ revenue, fees, hp, maxHp, stageTimeLeft, stageLabel, vehicleLabel, offers, active, full, nearestIdx, skill }) {
     this.el('#hud-money').innerHTML =
       `매출 ₩${revenue.toLocaleString()} · 수수료 -₩${fees.toLocaleString()}<br><b>순수익 ₩${(revenue - fees).toLocaleString()}</b>`;
     // 과속 충돌이 0.25 단위로 깎으므로 부분 하트는 그라데이션 텍스트로 표현
@@ -615,16 +619,9 @@ export class UI {
       `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
     clock.classList.toggle('low', stageTimeLeft <= 60);
 
-    // 의뢰 슬롯 4개 (FR-19) + 플레이어→가게 거리·최근접 뱃지 (FR-29 §14.3)
+    // 의뢰 슬롯 4개 (FR-19) + 거리·최근접 뱃지 (FR-29) + 동적 단가 (FR-54)
+    // 거리·최근접·단가는 delivery.update()가 산출 — 뱃지와 단가가 항상 동기
     if (!this._slotEls) this._slotEls = [...this.root.querySelectorAll('.offer-slot')];
-    let nearestIdx = -1;
-    let nearestDist = Infinity;
-    const dists = offers.map((offer, i) => {
-      if (!offer || !playerPos) return null;
-      const d = Math.hypot(playerPos.x - offer.shop.pos.x, playerPos.z - offer.shop.pos.z);
-      if (d < nearestDist) { nearestDist = d; nearestIdx = i; } // 동률은 앞 슬롯 우선
-      return d;
-    });
     offers.forEach((offer, i) => {
       const el = this._slotEls[i];
       el.classList.toggle('empty', !offer);
@@ -632,12 +629,17 @@ export class UI {
       el.classList.toggle('nearest', i === nearestIdx);
       if (offer) {
         el.querySelector('.o-route').textContent = `${offer.shop.name} → ${offer.door.name}`;
-        el.querySelector('.o-pay').textContent = `₩${offer.pay.toLocaleString()}`;
-        el.querySelector('.o-dist').textContent = dists[i] != null ? `${Math.round(dists[i])}m` : '';
+        const payEl = el.querySelector('.o-pay');
+        payEl.textContent = `₩${offer.pay.toLocaleString()}`;
+        payEl.classList.toggle('surge', !!offer.surge);
+        el.querySelector('.o-dist').textContent =
+          offer.playerDist != null ? `${Math.round(offer.playerDist)}m` : '';
         el.querySelector('.o-ttl i').style.width = `${(offer.ttl / OFFER_TTL) * 100}%`;
       } else {
         el.querySelector('.o-route').textContent = '의뢰 대기';
-        el.querySelector('.o-pay').textContent = '';
+        const payEl = el.querySelector('.o-pay');
+        payEl.textContent = '';
+        payEl.classList.remove('surge');
         el.querySelector('.o-dist').textContent = '';
       }
     });

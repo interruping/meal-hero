@@ -802,7 +802,7 @@ export class Game {
       offers: d.slots,
       active: d.active,
       full: d.active.length >= MAX_ACTIVE,
-      playerPos: p.pos,
+      nearestIdx: d.nearestIdx ?? -1, // §18.1 뱃지·단가 동기 (delivery 산출)
       skill: {
         dashActive,
         cdLeft,

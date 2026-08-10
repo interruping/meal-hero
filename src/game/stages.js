@@ -51,7 +51,10 @@ export const OBSTACLE_INFO = {
 export const TOTAL_DEBT = 20_000_000; // §12.4 전체 빚
 export const STAGE_TIME = 600; // §12.4 스테이지 제한 10분 (초)
 export const SEASON_DAYS = 120; // 정산 환산: 한 계절 분기 = 120일
-export const DELIVERY_PAY = 5_000; // §12.3 배달 건당 보수
+export const DELIVERY_PAY = 5_000; // §12.3 배달 건당 기본 보수
+export const NEAR_PAY = 3_000; // §18.1 최근접 뱃지 슬롯 단가 — 가까운 배달은 싸게
+export const SURGE_ADD = 2_000; // §18.1 만료 임박 웃돈 (5,000→7,000 / 3,000→5,000)
+export const SURGE_WINDOW = 1; // §18.1 TTL 1초 이하부터 급등
 export const BONUS_TIME_RATIO = 0.7; // 제한 시간 70% 이내 완료 시 보너스
 export const BONUS_MULT = 1.5; // 스피드 보너스 +50%
 export const LATE_FEE = 3_000; // §12.3 지각 수수료
