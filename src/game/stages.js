@@ -52,9 +52,9 @@ export const TOTAL_DEBT = 60_000_000; // §18.2 전체 빚 (2,000만 → 6,000�
 export const SAFE_MULT = 1.3; // §18.2 목표 게이지 SAFE선 = 하루 최소 목표 × 1.3
 export const STAGE_TIME = 600; // §12.4 스테이지 제한 10분 (초)
 export const SEASON_DAYS = 120; // 정산 환산: 한 계절 분기 = 120일
-export const DELIVERY_PAY = 5_000; // §12.3 배달 건당 기본 보수
-export const NEAR_PAY = 3_000; // §18.1 최근접 뱃지 슬롯 단가 — 가까운 배달은 싸게
-export const SURGE_ADD = 2_000; // §18.1 만료 임박 웃돈 (5,000→7,000 / 3,000→5,000)
+export const DELIVERY_PAY = 6_000; // §12.3 배달 건당 기본 보수 (7차 튜닝 5,000 → 6,000)
+export const NEAR_PAY = 4_000; // §18.1 최근접 뱃지 슬롯 단가 — 가까운 배달은 싸게 (3,000 → 4,000)
+export const SURGE_ADD = 2_000; // §18.1 만료 임박 웃돈 (6,000→8,000 / 4,000→6,000)
 export const SURGE_WINDOW = 1; // §18.1 TTL 1초 이하부터 급등
 export const BONUS_TIME_RATIO = 0.7; // 제한 시간 70% 이내 완료 시 보너스
 export const BONUS_MULT = 1.5; // 스피드 보너스 +50%
