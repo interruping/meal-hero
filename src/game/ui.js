@@ -232,14 +232,14 @@ body.nav-open #app > canvas { filter: blur(7px) brightness(0.9); }
   background: linear-gradient(180deg, #c9a13b, #b5372f); transition: height 0.3s; }
 #hud-goal .g-line { position: absolute; left: -4px; right: -4px; height: 0;
   border-top: 2px solid; }
-#hud-goal .g-line span { position: absolute; right: 24px; top: -8px; font-size: 11px;
-  white-space: nowrap; background: rgba(246,245,241,0.92); padding: 0 3px;
+#hud-goal .g-line span { position: absolute; right: 24px; top: -12px; font-size: 17px;
+  white-space: nowrap; background: rgba(246,245,241,0.92); padding: 0 4px;
   border: 1px solid #3a3a38; }
 #hud-goal .g-min { border-color: #b5372f; color: #b5372f; }
 #hud-goal .g-safe { border-color: #5f7a55; color: #5f7a55; }
-#hud-goal .g-cap { writing-mode: vertical-rl; font-size: 11px; color: #4a4a46;
-  background: rgba(246,245,241,0.92); border: 1px solid #3a3a38; padding: 6px 1px;
-  text-align: center; letter-spacing: 1px; align-self: center; }
+#hud-goal .g-cap { writing-mode: vertical-rl; font-size: 17px; color: #4a4a46;
+  background: rgba(246,245,241,0.92); border: 1px solid #3a3a38; padding: 8px 2px;
+  text-align: center; letter-spacing: 2px; align-self: center; }
 /* 근접(최소 목표 80%↑): 게이지가 화려해진다 — 악센트 글로우 맥동 */
 #hud-goal.near .g-track { animation: goal-glow 0.8s ease-in-out infinite; }
 @keyframes goal-glow {
