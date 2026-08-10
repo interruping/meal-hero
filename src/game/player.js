@@ -6,10 +6,10 @@ import { makeBlobShadow } from './shadow.js';
 const GRAVITY = 24;
 const RADIUS = 0.45;
 
-// FR-26 대시 (§14.1): 3초간 1.5×, 쿨타임 10초(종료 시점부터), 대시 중 조향 감쇠
+// FR-26 대시 (§14.1): 3초간 부스트, 쿨타임 10초(종료 시점부터), 대시 중 조향 감쇠
 export const DASH_DURATION = 3;
 export const DASH_COOLDOWN = 10;
-const DASH_MULT = 1.5;
+const DASH_MULT = 2.25; // §17.5 (FR-51) 1.5 → 2.25 (+50%)
 const DASH_STEER = 0.12; // 대시 중 속도 벡터 수렴 계수 — 회전 반경 확대
 
 // FR-1 이동·점프·중력 + FR-2 탈것 관성 + FR-14 겨울 미끄러짐
@@ -95,6 +95,7 @@ export class Player {
       this.audio?.play('skill');
     }
     const dashing = this.time < (this.dashUntil ?? 0);
+    this.isDashing = dashing; // §17.5 바람 이펙트(windfx)가 조회
 
     // 목표 속도: 경사·페널티 반영
     let maxSpeed = v.maxSpeed;

@@ -23,6 +23,7 @@ import { AudioSys } from '../core/audio.js';
 import { setupWalkAnimation, addOutline } from './walkanim.js';
 import { NavMap } from './navmap.js';
 import { ArrowGuide } from './arrow.js';
+import { WindFX } from './windfx.js';
 import { Traffic } from './traffic.js';
 import { Signals } from './signals.js';
 
@@ -122,6 +123,7 @@ export class Game {
     this.obstacles = new ObstacleManager(this.world, this.scene, this.player, this);
     this.navMap = new NavMap(); // FR-20 네비게이션
     this.arrow = new ArrowGuide(this.scene); // FR-33 (§15.1) 3D 안내 화살표
+    this.windfx = new WindFX(this.scene); // FR-51 (§17.5) 대시 바람 이펙트
     this.audio = new AudioSys();
     this.player.audio = this.audio;
 
@@ -760,6 +762,7 @@ export class Game {
     if (this.state !== 'paused') {
       this.updateHeroAnim(dt);
       this.updateHitFlash();
+      this.windfx.update(dt, this.player);
       this.peds?.update(dt);
       // §15.4 차량은 상시 주행, 충돌 판정은 플레이 중에만. §16.2 신호 주기 상시 순환
       this.signals?.update(dt);
