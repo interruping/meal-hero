@@ -380,13 +380,15 @@ export class Game {
       // 차량 GLB 3종 모두 앞머리(핸들바)가 -x — 진행 방향(+z)으로 90° 정렬
       vehicle.rotation.y = Math.PI / 2;
       holder.add(vehicle);
-      // 탑승 자세: 킥보드는 발판에 서고, 자전거·스쿠터는 안장 착좌 (앉기 클립과 세트 튜닝)
+      // 탑승 자세: 킥보드는 발판에 서고, 자전거·스쿠터는 안장 착좌 (앉기 클립과 세트 튜닝).
+      // x = §17.4 (FR-50) 좌우 정렬 보정 — 자전거·스쿠터 GLB는 사이드스탠드가 bbox
+      // 중심을 왜곡해 안장선이 중심 밖. 후방 시점 스크린샷 실측값
       const pose = {
-        kickboard: { y: 0.14, z: -0.05, rx: 0 },
-        bicycle: { y: 0.33, z: 0.1, rx: -0.06 },
-        scooter: { y: 0.30, z: 0.22, rx: -0.06 },
+        kickboard: { x: 0, y: 0.14, z: -0.05, rx: 0 },
+        bicycle: { x: -0.24, y: 0.33, z: 0.1, rx: -0.06 },
+        scooter: { x: -0.24, y: 0.30, z: 0.22, rx: -0.06 },
       }[vehicleKey];
-      hero.position.set(0, pose.y, pose.z);
+      hero.position.set(pose.x, pose.y, pose.z);
       hero.rotation.x = pose.rx;
       holder.add(hero);
     }
