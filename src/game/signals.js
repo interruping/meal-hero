@@ -64,8 +64,14 @@ export class Signals {
     this.carLampZ = probe(this.carTpl,
       [[-this.carSize.x * 0.3, this.carSize.y * 0.5], [this.carSize.x * 0.3, this.carSize.y * 0.5]],
       this.carSize.z * 0.2);
+    // 보행등 창 개구부 실측 (전면 깊이 그리드 스캔): 위 칸 y 0.657~0.843H(중심
+    // 0.750), 아래 칸 0.443~0.577H(중심 0.510), 유리 폭 0.6W — 픽토그램은 칸
+    // 중심에 개구부의 90% 크기로 밀착 (기존 0.76/0.50H + 0.30H 쿼드는 창의
+    // 1.6~2.2배라 프레임·차양 밖으로 삐져나왔음)
+    this.pedTopY = this.pedSize.y * 0.750;
+    this.pedBotY = this.pedSize.y * 0.510;
     this.pedLampZ = probe(this.pedTpl,
-      [[0, this.pedSize.y * 0.76], [0, this.pedSize.y * 0.50]],
+      [[0, this.pedTopY], [0, this.pedBotY]],
       this.pedSize.z * 0.3);
     // 등화 오버레이 목록 — 담당 골목 축('z'=세로 골목 주행 / 'x'=가로)별로 분리.
     // ped는 "그 횡단보도가 가로지르는 골목"의 축으로 분류 (해당 축 차량 신호와 반전)
@@ -99,7 +105,14 @@ export class Signals {
       arm: new THREE.CylinderGeometry(0.05, 0.05, CORNER - 0.7 + 0.2, 6),
       pedPole: new THREE.CylinderGeometry(0.055, 0.08, 2.6, 8),
       lamp: new THREE.CircleGeometry(this.carSize.y * 0.24, 12),
-      pict: new THREE.PlaneGeometry(this.pedSize.y * 0.30, this.pedSize.y * 0.30),
+      pictTop: (() => {
+        const s = Math.min(this.pedSize.x * 0.6, this.pedSize.y * 0.186) * 0.9;
+        return new THREE.PlaneGeometry(s, s);
+      })(),
+      pictBot: (() => {
+        const s = Math.min(this.pedSize.x * 0.6, this.pedSize.y * 0.134) * 0.9;
+        return new THREE.PlaneGeometry(s, s);
+      })(),
     };
 
     for (const cx of STREETS) {
@@ -165,15 +178,14 @@ export class Signals {
   pedHeadUnit(crossAxis) {
     const g = new THREE.Group();
     g.add(this.pedTpl.clone(true));
-    const Hh = this.pedSize.y;
-    const mk = (mat, hy, z) => {
-      const p = new THREE.Mesh(this.geo.pict, mat);
+    const mk = (geo, mat, hy, z) => {
+      const p = new THREE.Mesh(geo, mat);
       p.position.set(0, hy, z);
       g.add(p);
       return p;
     };
-    this.pedByAxis[crossAxis].stand.push(mk(this.pedStandMat, Hh * 0.76, this.pedLampZ[0]));
-    this.pedByAxis[crossAxis].walk.push(mk(this.pedWalkMat, Hh * 0.50, this.pedLampZ[1]));
+    this.pedByAxis[crossAxis].stand.push(mk(this.geo.pictTop, this.pedStandMat, this.pedTopY, this.pedLampZ[0]));
+    this.pedByAxis[crossAxis].walk.push(mk(this.geo.pictBot, this.pedWalkMat, this.pedBotY, this.pedLampZ[1]));
     return g;
   }
 
