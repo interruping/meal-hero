@@ -858,12 +858,15 @@ export class Game {
       const v = this.arrow.group.position.clone();
       v.y -= 0.55;
       v.project(this.cam.camera);
+      const lx = (v.x * 0.5 + 0.5) * this.ui.root.offsetWidth;
+      const ly = (-v.y * 0.5 + 0.5) * this.ui.root.offsetHeight;
       this.ui.setArrowLabel(
         urgent.phase === 'pickup' ? `${urgent.shop.name} 픽업` : `${urgent.door.name} 배달`,
-        color,
-        (v.x * 0.5 + 0.5) * this.ui.root.offsetWidth,
-        (-v.y * 0.5 + 0.5) * this.ui.root.offsetHeight,
+        color, lx, ly,
       );
+      // §19.5 (FR-63) 10초 이내 급박 건 카운트다운 — 튜토리얼 타이머 정지 중 미발동
+      if (urgent.timeLeft <= 10 && !this.tutorial) this.ui.setArrowCountdown(urgent.timeLeft, lx, ly);
+      else this.ui.setArrowCountdown(null);
     } else {
       this.arrow.hide();
       this.ui.setArrowLabel(null);

@@ -120,7 +120,11 @@ const CSS = `
   display: flex; align-items: center; gap: 6px; min-width: 210px; }
 .active-row .dot { width: 10px; height: 10px; flex: none; border: 1px solid #3a3a38; }
 .active-row .a-sec { margin-left: auto; }
-.active-row.low .a-sec { color: #b5372f; font-weight: bold; }
+/* §19.5 (FR-63) 10초 이내: 빨간 깜빡 + 10% 크기 펄스 (기존 8초 빨간 텍스트 대체, 시계 §12.4 문법) */
+.active-row.urgent { color: #b5372f; border-color: #b5372f; transform-origin: left center;
+  animation: clock-pulse 0.7s ease-in-out infinite, urgent-blink 0.7s ease-in-out infinite; }
+.active-row.urgent .a-sec { font-weight: bold; }
+@keyframes urgent-blink { 0%, 100% { background: rgba(246,245,241,0.96); } 50% { background: #e5c6cd; } }
 #hud-hint { bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 19px; display: none;
   background: #3a3a38; color: #efeeea; border-color: #efeeea; }
 /* §14.1+§15.2 좌측 하단 스킬 UI: 대시 쿨타임 게이지 + 에너지 드링크 키·가격 안내.
@@ -142,6 +146,15 @@ const CSS = `
   font-size: 14px; padding: 2px 9px; background: rgba(246,245,241,0.95);
   border: 2px solid #b5372f; color: #3a3a38; white-space: nowrap; display: none;
   box-shadow: 2px 2px 0 rgba(58,58,56,0.45); font-weight: bold; }
+/* §19.5 (FR-63) 화살표 하단 카운트다운 — 라벨(translate -50%,10px·높이 약 26px) 아래 44px에 배치해
+   겹침 회피. 전체 불투명도는 JS(0초 근접할수록 진해짐), 내부 텍스트는 깜빡임 */
+#arrow-count { position: absolute; left: 0; top: 0; transform: translate(-50%, 44px);
+  display: none; color: #b5372f; font-size: 30px; font-weight: bold; white-space: nowrap;
+  text-shadow: 2px 0 0 #efeeea, -2px 0 0 #efeeea, 0 2px 0 #efeeea, 0 -2px 0 #efeeea,
+    2px 2px 0 #efeeea, -2px -2px 0 #efeeea, 2px -2px 0 #efeeea, -2px 2px 0 #efeeea;
+  pointer-events: none; }
+#arrow-count .ac-txt { display: inline-block; animation: count-blink 0.5s ease-in-out infinite; }
+@keyframes count-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 #hud-banner { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;
   background: rgba(246,245,241,0.97); border: 3px solid #3a3a38; padding: 14px 30px; display: none;
   text-align: center; box-shadow: 4px 4px 0 rgba(58,58,56,0.45); }
@@ -389,6 +402,7 @@ export class UI {
         <div id="hitflash"></div>
         <div id="hud-hint" class="hud-panel"></div>
         <div id="arrow-label"></div>
+        <div id="arrow-count"><span class="ac-txt"></span></div>
         <div id="hud-banner"></div>
         <div id="hud-toast"></div>
         <div id="navphone">
@@ -800,7 +814,7 @@ export class UI {
       const row = holder.querySelector(`[data-id="${d.id}"]`);
       if (!row) continue;
       row.querySelector('.a-sec').textContent = `${Math.ceil(d.timeLeft)}초`;
-      row.classList.toggle('low', d.timeLeft < 8);
+      row.classList.toggle('urgent', d.timeLeft <= 10); // §19.5 (FR-63)
     }
   }
 
@@ -847,12 +861,23 @@ export class UI {
   // §15.1 (FR-33) 화살표 대상 라벨: x/y는 #ui(=캔버스) 좌표계 px
   setArrowLabel(text, color, x, y) {
     const a = this.el('#arrow-label');
-    if (!text) { a.style.display = 'none'; return; }
+    if (!text) { a.style.display = 'none'; this.setArrowCountdown(null); return; }
     a.textContent = text;
     a.style.display = 'block';
     a.style.borderColor = color;
     a.style.left = `${Math.round(x)}px`;
     a.style.top = `${Math.round(y)}px`;
+  }
+
+  // §19.5 (FR-63) 화살표 하단 카운트다운 — 0초에 가까울수록 전체 불투명도 증가
+  setArrowCountdown(sec, x, y) {
+    const c = this.el('#arrow-count');
+    if (sec == null) { c.style.display = 'none'; return; }
+    c.style.display = 'block';
+    c.style.left = `${Math.round(x)}px`;
+    c.style.top = `${Math.round(y)}px`;
+    c.style.opacity = (0.4 + (1 - Math.max(0, sec) / 10) * 0.6).toFixed(2);
+    c.querySelector('.ac-txt').textContent = `${Math.ceil(sec)}초`;
   }
 
   showHint(text) {
