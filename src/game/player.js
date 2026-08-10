@@ -108,13 +108,29 @@ export class Player {
     if (hasInput) maxSpeed *= slopeFactor(this.pos.x, this.pos.z, dirX, dirZ);
 
     // 관성 수렴 (겨울 노면은 수렴 계수 급감 = 미끄러짐).
-    // 대시 중엔 수렴이 느려져 코너링이 완만해진다 — 속도의 대가 (§14.1)
+    // 대시 중엔 방향 전환만 감쇠(코너링 완만 — 속도의 대가 §14.1)하고 속력
+    // 상승은 전속 수렴 — §17.5 배율 2.25×가 실제 속도로 나오게 분리
     const slip = this.slippery ? 0.32 : 1;
-    const steer = dashing ? DASH_STEER : 1;
-    const rate = (hasInput ? v.accelRate : v.brakeRate) * slip * steer;
-    const k = 1 - Math.exp(-rate * dt);
-    this.vel.x += (dirX * maxSpeed - this.vel.x) * k;
-    this.vel.z += (dirZ * maxSpeed - this.vel.z) * k;
+    const rate = (hasInput ? v.accelRate : v.brakeRate) * slip;
+    if (dashing && hasInput) {
+      const ex = dirX * maxSpeed - this.vel.x;
+      const ez = dirZ * maxSpeed - this.vel.z;
+      // 현재 진행 방향 축(정지 상태면 입력 방향)으로 분해
+      const s2 = Math.hypot(this.vel.x, this.vel.z);
+      const ax = s2 > 1 ? this.vel.x / s2 : dirX;
+      const az = s2 > 1 ? this.vel.z / s2 : dirZ;
+      const par = ex * ax + ez * az;
+      const kF = 1 - Math.exp(-rate * dt);
+      const kS = 1 - Math.exp(-rate * DASH_STEER * dt);
+      // 진행 축 가속만 전속(kF), 감속·직교(방향 전환)는 감쇠(kS) — 넓은 회전 유지
+      const kPar = par > 0 ? kF : kS;
+      this.vel.x += ax * par * kPar + (ex - ax * par) * kS;
+      this.vel.z += az * par * kPar + (ez - az * par) * kS;
+    } else {
+      const k = 1 - Math.exp(-rate * (dashing ? DASH_STEER : 1) * dt);
+      this.vel.x += (dirX * maxSpeed - this.vel.x) * k;
+      this.vel.z += (dirZ * maxSpeed - this.vel.z) * k;
+    }
 
     // 점프·중력
     const gh = this.world.groundHeight(this.pos.x, this.pos.z);
