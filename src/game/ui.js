@@ -189,38 +189,46 @@ body.nav-open #app > canvas { filter: blur(7px) brightness(0.9); }
   padding: 1px 8px; margin-bottom: 6px; }
 .cm-receipt .cm-code { font-size: 19px; letter-spacing: 2px; color: #3a3a38; margin-top: 6px;
   border-top: 1px dashed #9a9a96; padding-top: 7px; }
-/* §18.4 (FR-57) 접수증 20% 확대 — 우하단 고정 origin이라 영수증·바 쪽으로 안 밀림.
-   overflow hidden으로 후광 광선을 카드 안에 가둔다 */
+/* §18.4 (FR-57) 접수증 — 기본 20% 확대에 ±10% 크기 펄스 (1.2 ↔ 1.32).
+   빨간 테두리는 어색하다는 피드백으로 무채색 (강조는 후광·펄스가 담당) */
 #codematch .cm-mine { position: absolute; right: 26px; bottom: 26px; width: 190px;
-  background: #efeeea; border: 3px solid #b5372f; padding: 12px 10px; text-align: center;
-  transform: rotate(-3deg) scale(1.2); transform-origin: bottom right;
-  box-shadow: 5px 5px 0 rgba(58,58,56,0.55); font-size: 13px; overflow: hidden; }
-/* §18.4 내 주문코드 후광 — 회전 광선 버스트 + 바깥으로 쫙 펼쳐지는 확산 링 + 글로우 맥동 */
+  background: #efeeea; border: 3px solid #3a3a38; padding: 12px 10px; text-align: center;
+  transform-origin: bottom right;
+  box-shadow: 5px 5px 0 rgba(58,58,56,0.55); font-size: 13px;
+  animation: mine-pulse 1.1s ease-in-out infinite; }
+@keyframes mine-pulse {
+  0%, 100% { transform: rotate(-3deg) scale(1.2); }
+  50% { transform: rotate(-3deg) scale(1.32); }
+}
+/* §18.4 후광 — 접수증 카드 "뒤"에서 시작해 바깥으로 쫙 발산하는 레이어.
+   DOM에서 .cm-mine보다 앞이라 카드가 위를 덮음 → 카드 밖으로 뻗는 광선만 보인다 */
+#codematch .cm-halo { position: absolute; right: -70px; bottom: -120px;
+  width: 420px; height: 420px; pointer-events: none; }
+/* 회전 광선 버스트 */
+#codematch .cm-halo::before { content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: repeating-conic-gradient(rgba(201,161,59,0.65) 0deg 10deg, rgba(201,161,59,0) 10deg 26deg);
+  -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,1) 0%, rgba(0,0,0,0.55) 45%, transparent 70%);
+  mask-image: radial-gradient(circle, rgba(0,0,0,1) 0%, rgba(0,0,0,0.55) 45%, transparent 70%);
+  animation: halo-spin 5s linear infinite; }
+@keyframes halo-spin { to { transform: rotate(360deg); } }
+/* 확산 링: 카드 가장자리에서 바깥으로 쫙 퍼지며 소멸 — 카드 펄스와 동주기 */
+#codematch .cm-halo::after { content: ''; position: absolute; left: 50%; top: 50%;
+  width: 240px; height: 240px; margin: -120px 0 0 -120px; border-radius: 50%;
+  border: 4px solid rgba(201,161,59,0.9);
+  box-shadow: 0 0 14px rgba(201,161,59,0.7), inset 0 0 14px rgba(201,161,59,0.7);
+  animation: halo-burst 1.1s ease-out infinite; }
+@keyframes halo-burst {
+  0% { transform: scale(0.55); opacity: 0.95; }
+  70% { opacity: 0.4; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+/* 내 주문코드 글로우 맥동 (후광과 동주기) */
 #codematch .cm-mine .cm-code { position: relative; font-size: 22px; letter-spacing: 3px;
   color: #b5372f; margin: 6px 0; animation: code-halo 1.1s ease-in-out infinite; }
 @keyframes code-halo {
   0%, 100% { text-shadow: 0 0 5px rgba(201,161,59,0.5); }
   50% { text-shadow: 0 0 8px rgba(201,161,59,1), 0 0 18px rgba(229,198,205,0.95),
     0 0 30px rgba(201,161,59,0.65); }
-}
-/* 광선 버스트: 코드 뒤에서 천천히 회전 (z-index -1 — 카드 텍스트 아래) */
-#codematch .cm-mine .cm-code::before { content: ''; position: absolute; left: 50%; top: 50%;
-  width: 250px; height: 250px; margin: -125px 0 0 -125px; z-index: -1; border-radius: 50%;
-  background: repeating-conic-gradient(rgba(201,161,59,0.5) 0deg 12deg, rgba(201,161,59,0) 12deg 30deg);
-  -webkit-mask-image: radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 42%, transparent 66%);
-  mask-image: radial-gradient(circle, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.5) 42%, transparent 66%);
-  animation: halo-spin 5s linear infinite; }
-@keyframes halo-spin { to { transform: rotate(360deg); } }
-/* 확산 링: 코드에서 바깥으로 퍼져나가며 소멸 — 글로우 맥동과 동주기 */
-#codematch .cm-mine .cm-code::after { content: ''; position: absolute; left: 50%; top: 50%;
-  width: 160px; height: 160px; margin: -80px 0 0 -80px; z-index: -1; border-radius: 50%;
-  border: 3px solid rgba(201,161,59,0.85);
-  box-shadow: 0 0 10px rgba(201,161,59,0.6), inset 0 0 10px rgba(201,161,59,0.6);
-  animation: halo-burst 1.1s ease-out infinite; }
-@keyframes halo-burst {
-  0% { transform: scale(0.3); opacity: 0.95; }
-  70% { opacity: 0.4; }
-  100% { transform: scale(1.3); opacity: 0; }
 }
 /* §18.2 (FR-55) 일일 목표 게이지: 우측 세로 스트립 — 하트·시계 아래, 표시 전용.
    빨간선 = 하루 최소 목표, 그 위 SAFE선(×1.3). 근접 시 글로우, SAFE 돌파 시 금테 유지 */
@@ -356,6 +364,7 @@ export class UI {
           <div class="cm-msg"></div>
           <div class="cm-bar"><i></i></div>
           <div class="cm-receipts"></div>
+          <div class="cm-halo"></div>
           <div class="cm-mine">
             <div>내 배달 접수증</div>
             <div class="cm-code"></div>
