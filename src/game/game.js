@@ -112,6 +112,8 @@ export class Game {
           1800,
         );
         this.audio.play(fast ? 'bonus' : 'deliver');
+        // §19.3 (FR-61) 전달 보이스 — 일반/보너스 상호 배타, 돈소리와 동시 재생 (§13 확정)
+        this.audio.play(fast ? 'voiceFast' : 'voiceEnjoy');
       },
       onExpired: (d) => {
         // §12.3 지각 수수료 — 순수익이 음수가 되는 순간 게임오버
