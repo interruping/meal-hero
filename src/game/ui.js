@@ -263,6 +263,14 @@ body.nav-open #app > canvas { filter: blur(7px) brightness(0.9); }
   pointer-events: none; z-index: 8; }
 #goal-flash.on { animation: goal-flash 0.5s ease-out; }
 @keyframes goal-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+/* §19.2 (FR-60) 과속 충돌 풀스크린 빨간 플래시 2회 깜빡 — 판정·수치 무변경, 연출만.
+   차량 피격(FR-36)도 같은 플래시 재사용 (§13 확정) */
+#hitflash { position: absolute; inset: 0; background: #b5372f; opacity: 0;
+  pointer-events: none; z-index: 8; }
+#hitflash.on { animation: hit-flash 0.5s ease-out; }
+@keyframes hit-flash {
+  0% { opacity: 0.55; } 40% { opacity: 0.05; } 60% { opacity: 0.4; } 100% { opacity: 0; }
+}
 /* §19.1 (FR-58/59) 코드 매칭 정답/오답 대형 타이포 슬램 — 크게 등장해 순간 수축(꽝)·진동,
    잠시 유지 후 페이드아웃. 포인터 통과·조작 잠금 없음 (게임 흐름 방해 금지) */
 #slam { position: absolute; inset: 0; display: none; z-index: 9; pointer-events: none;
@@ -378,6 +386,7 @@ export class UI {
           <div class="g-cap">오늘 목표</div>
         </div>
         <div id="goal-flash"></div>
+        <div id="hitflash"></div>
         <div id="hud-hint" class="hud-panel"></div>
         <div id="arrow-label"></div>
         <div id="hud-banner"></div>
@@ -907,6 +916,14 @@ export class UI {
 
   hideCodeMatch() {
     this.el('#codematch').style.display = 'none';
+  }
+
+  // §19.2 (FR-60) 충돌 풀스크린 빨간 플래시
+  damageFlash() {
+    const f = this.el('#hitflash');
+    f.classList.remove('on');
+    void f.offsetWidth;
+    f.classList.add('on');
   }
 
   // §19.1 (FR-58/59) 정답/오답 대형 타이포 슬램 — 기존 오답 토스트 대체

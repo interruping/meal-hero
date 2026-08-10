@@ -79,6 +79,9 @@ export class Game {
       p.vel.x *= 0.25;
       p.vel.z *= 0.25;
       this.damage(0.25, 'crash');
+      // §19.2 (FR-60) 화면 빨간 플래시 + 파손 SFX (기존 crash와 병행)
+      this.ui.damageFlash();
+      this.audio.play('glass');
       this.ui.toast('쾅! 과속 충돌 (-체력 ¼)');
     };
     this.cam = new FollowCamera(this.world);
@@ -696,6 +699,7 @@ export class Game {
     p.vel.z = fz * 16;
     p.vel.y = 5.5;
     this.ui.toast('빵빵!! 무자비한 차에 치였다 (-체력 1)', 1800);
+    this.ui.damageFlash(); // §19.2 플래시 재사용 (§13 확정)
     this.damage(1, 'crash');
   }
 
