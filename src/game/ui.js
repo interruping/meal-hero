@@ -120,7 +120,11 @@ const CSS = `
   display: flex; align-items: center; gap: 6px; min-width: 210px; }
 .active-row .dot { width: 10px; height: 10px; flex: none; border: 1px solid #3a3a38; }
 .active-row .a-sec { margin-left: auto; }
-.active-row.low .a-sec { color: #b5372f; font-weight: bold; }
+/* §19.5 (FR-63) 10초 이내: 빨간 깜빡 + 10% 크기 펄스 (기존 8초 빨간 텍스트 대체, 시계 §12.4 문법) */
+.active-row.urgent { color: #b5372f; border-color: #b5372f; transform-origin: left center;
+  animation: clock-pulse 0.7s ease-in-out infinite, urgent-blink 0.7s ease-in-out infinite; }
+.active-row.urgent .a-sec { font-weight: bold; }
+@keyframes urgent-blink { 0%, 100% { background: rgba(246,245,241,0.96); } 50% { background: #e5c6cd; } }
 #hud-hint { bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 19px; display: none;
   background: #3a3a38; color: #efeeea; border-color: #efeeea; }
 /* §14.1+§15.2 좌측 하단 스킬 UI: 대시 쿨타임 게이지 + 에너지 드링크 키·가격 안내.
@@ -142,6 +146,15 @@ const CSS = `
   font-size: 14px; padding: 2px 9px; background: rgba(246,245,241,0.95);
   border: 2px solid #b5372f; color: #3a3a38; white-space: nowrap; display: none;
   box-shadow: 2px 2px 0 rgba(58,58,56,0.45); font-weight: bold; }
+/* §19.5 (FR-63) 화살표 하단 카운트다운 — 라벨(translate -50%,10px·높이 약 26px) 아래 44px에 배치해
+   겹침 회피. 전체 불투명도는 JS(0초 근접할수록 진해짐), 내부 텍스트는 깜빡임 */
+#arrow-count { position: absolute; left: 0; top: 0; transform: translate(-50%, 44px);
+  display: none; color: #b5372f; font-size: 30px; font-weight: bold; white-space: nowrap;
+  text-shadow: 2px 0 0 #efeeea, -2px 0 0 #efeeea, 0 2px 0 #efeeea, 0 -2px 0 #efeeea,
+    2px 2px 0 #efeeea, -2px -2px 0 #efeeea, 2px -2px 0 #efeeea, -2px 2px 0 #efeeea;
+  pointer-events: none; }
+#arrow-count .ac-txt { display: inline-block; animation: count-blink 0.5s ease-in-out infinite; }
+@keyframes count-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
 #hud-banner { position: absolute; top: 30%; left: 50%; transform: translate(-50%, -50%); font-size: 24px;
   background: rgba(246,245,241,0.97); border: 3px solid #3a3a38; padding: 14px 30px; display: none;
   text-align: center; box-shadow: 4px 4px 0 rgba(58,58,56,0.45); }
@@ -263,6 +276,43 @@ body.nav-open #app > canvas { filter: blur(7px) brightness(0.9); }
   pointer-events: none; z-index: 8; }
 #goal-flash.on { animation: goal-flash 0.5s ease-out; }
 @keyframes goal-flash { 0% { opacity: 0.85; } 100% { opacity: 0; } }
+/* §19.2 (FR-60) 과속 충돌 풀스크린 빨간 플래시 2회 깜빡 — 판정·수치 무변경, 연출만.
+   차량 피격(FR-36)도 같은 플래시 재사용 (§13 확정) */
+#hitflash { position: absolute; inset: 0; background: #b5372f; opacity: 0;
+  pointer-events: none; z-index: 8; }
+#hitflash.on { animation: hit-flash 0.5s ease-out; }
+@keyframes hit-flash {
+  0% { opacity: 0.55; } 40% { opacity: 0.05; } 60% { opacity: 0.4; } 100% { opacity: 0; }
+}
+/* §19.1 (FR-58/59) 코드 매칭 정답/오답 대형 타이포 슬램 — 크게 등장해 순간 수축(꽝)·진동,
+   잠시 유지 후 페이드아웃. 포인터 통과·조작 잠금 없음 (게임 흐름 방해 금지) */
+#slam { position: absolute; inset: 0; display: none; z-index: 9; pointer-events: none;
+  align-items: center; justify-content: center; }
+#slam.on { display: flex; }
+#slam .sl-wrap { text-align: center; animation: slam-in 1.7s ease-out forwards; }
+#slam .sl-icon { display: none; }
+#slam.good .sl-icon { display: block; }
+#slam .sl-icon svg { width: clamp(96px, 14vw, 170px); height: auto;
+  filter: drop-shadow(6px 6px 0 rgba(58,58,56,0.55)); margin: 0 auto 4px; }
+#slam .sl-text { font-size: clamp(36px, 6.5vw, 88px); font-weight: bold; line-height: 1.3;
+  letter-spacing: 2px; white-space: nowrap; }
+#slam .sl-text .sl-sub { display: block; font-size: 0.55em; margin-top: 10px; }
+#slam.good .sl-text { color: #c9a13b; }
+#slam.bad .sl-text { color: #b5372f; }
+#slam .sl-text, #slam .sl-text .sl-sub {
+  text-shadow: 3px 0 0 #26262a, -3px 0 0 #26262a, 0 3px 0 #26262a, 0 -3px 0 #26262a,
+    3px 3px 0 #26262a, -3px -3px 0 #26262a, 3px -3px 0 #26262a, -3px 3px 0 #26262a,
+    8px 8px 0 rgba(58,58,56,0.5); }
+@keyframes slam-in {
+  0% { transform: scale(2.6); opacity: 0; }
+  9% { transform: scale(0.9); opacity: 1; }
+  13% { transform: scale(1.06) translate(-7px, 5px); }
+  17% { transform: scale(0.96) translate(6px, -4px); }
+  21% { transform: scale(1.02) translate(-3px, 2px); }
+  25% { transform: scale(1) translate(0, 0); }
+  80% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.04); opacity: 0; }
+}
 .goal-confetti { position: absolute; top: -14px; width: 9px; height: 13px;
   pointer-events: none; z-index: 8; opacity: 0;
   animation: confetti-fall var(--t) ease-in var(--d) forwards; }
@@ -349,8 +399,10 @@ export class UI {
           <div class="g-cap">오늘 목표</div>
         </div>
         <div id="goal-flash"></div>
+        <div id="hitflash"></div>
         <div id="hud-hint" class="hud-panel"></div>
         <div id="arrow-label"></div>
+        <div id="arrow-count"><span class="ac-txt"></span></div>
         <div id="hud-banner"></div>
         <div id="hud-toast"></div>
         <div id="navphone">
@@ -371,6 +423,21 @@ export class UI {
             <div style="color:#6a6a66">일치하는 영수증을 [1~4]로!</div>
           </div>
         </div>
+        <div id="slam"><div class="sl-wrap">
+          <div class="sl-icon"><svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+            <rect x="3" y="0" width="5" height="7" fill="#26262a"/>
+            <rect x="3" y="5" width="12" height="10" fill="#26262a"/>
+            <rect x="0" y="5" width="4" height="10" fill="#26262a"/>
+            <rect x="4" y="1" width="3" height="5" fill="#efeeea"/>
+            <rect x="4" y="6" width="10" height="8" fill="#efeeea"/>
+            <rect x="1" y="6" width="2" height="8" fill="#4f6d8f"/>
+            <rect x="7" y="6" width="1" height="3" fill="#26262a"/>
+            <rect x="9" y="8" width="5" height="1" fill="#26262a"/>
+            <rect x="9" y="10" width="5" height="1" fill="#26262a"/>
+            <rect x="9" y="12" width="5" height="1" fill="#26262a"/>
+          </svg></div>
+          <div class="sl-text"></div>
+        </div></div>
       </div>
       <div id="screen-holder"></div>
     `;
@@ -747,7 +814,7 @@ export class UI {
       const row = holder.querySelector(`[data-id="${d.id}"]`);
       if (!row) continue;
       row.querySelector('.a-sec').textContent = `${Math.ceil(d.timeLeft)}초`;
-      row.classList.toggle('low', d.timeLeft < 8);
+      row.classList.toggle('urgent', d.timeLeft <= 10); // §19.5 (FR-63)
     }
   }
 
@@ -794,12 +861,23 @@ export class UI {
   // §15.1 (FR-33) 화살표 대상 라벨: x/y는 #ui(=캔버스) 좌표계 px
   setArrowLabel(text, color, x, y) {
     const a = this.el('#arrow-label');
-    if (!text) { a.style.display = 'none'; return; }
+    if (!text) { a.style.display = 'none'; this.setArrowCountdown(null); return; }
     a.textContent = text;
     a.style.display = 'block';
     a.style.borderColor = color;
     a.style.left = `${Math.round(x)}px`;
     a.style.top = `${Math.round(y)}px`;
+  }
+
+  // §19.5 (FR-63) 화살표 하단 카운트다운 — 0초에 가까울수록 전체 불투명도 증가
+  setArrowCountdown(sec, x, y) {
+    const c = this.el('#arrow-count');
+    if (sec == null) { c.style.display = 'none'; return; }
+    c.style.display = 'block';
+    c.style.left = `${Math.round(x)}px`;
+    c.style.top = `${Math.round(y)}px`;
+    c.style.opacity = (0.4 + (1 - Math.max(0, sec) / 10) * 0.6).toFixed(2);
+    c.querySelector('.ac-txt').textContent = `${Math.ceil(sec)}초`;
   }
 
   showHint(text) {
@@ -863,6 +941,29 @@ export class UI {
 
   hideCodeMatch() {
     this.el('#codematch').style.display = 'none';
+  }
+
+  // §19.2 (FR-60) 충돌 풀스크린 빨간 플래시
+  damageFlash() {
+    const f = this.el('#hitflash');
+    f.classList.remove('on');
+    void f.offsetWidth;
+    f.classList.add('on');
+  }
+
+  // §19.1 (FR-58/59) 정답/오답 대형 타이포 슬램 — 기존 오답 토스트 대체
+  showSlam(correct) {
+    const s = this.el('#slam');
+    s.classList.toggle('good', correct);
+    s.classList.toggle('bad', !correct);
+    s.querySelector('.sl-text').innerHTML = correct
+      ? '안전히 배달해주세요~'
+      : '시간을 낭비했습니다<span class="sl-sub">배달 가능 시간 -5초</span>';
+    s.classList.remove('on');
+    void s.offsetWidth; // 연속 픽업 시 애니메이션 재시작
+    s.classList.add('on');
+    clearTimeout(this._slamT);
+    this._slamT = setTimeout(() => s.classList.remove('on'), 1750);
   }
 
   // 비둘기 충돌: 앞유리에 부딪힌 스플랫을 화면 중앙에, 깃털은 중앙 피해 산개 후 2초 잔류

@@ -79,6 +79,9 @@ export class Game {
       p.vel.x *= 0.25;
       p.vel.z *= 0.25;
       this.damage(0.25, 'crash');
+      // §19.2 (FR-60) 화면 빨간 플래시 + 파손 SFX (기존 crash와 병행)
+      this.ui.damageFlash();
+      this.audio.play('glass');
       this.ui.toast('쾅! 과속 충돌 (-체력 ¼)');
     };
     this.cam = new FollowCamera(this.world);
@@ -109,6 +112,8 @@ export class Game {
           1800,
         );
         this.audio.play(fast ? 'bonus' : 'deliver');
+        // §19.3 (FR-61) 전달 보이스 — 일반/보너스 상호 배타, 돈소리와 동시 재생 (§13 확정)
+        this.audio.play(fast ? 'voiceFast' : 'voiceEnjoy');
       },
       onExpired: (d) => {
         // §12.3 지각 수수료 — 순수익이 음수가 되는 순간 게임오버
@@ -165,7 +170,8 @@ export class Game {
     });
     // §15.4 (FR-36) 차도 주행 차량 — 주차 차량과 같은 Meshy 모델 재사용
     this.traffic = new Traffic(this.scene, this.world, { sedan: parkedSedan, truck: parkedTruck },
-      (car, fx, fz) => this.onCarHit(fx, fz), this.signals);
+      (car, fx, fz) => this.onCarHit(fx, fz), this.signals,
+      () => this.audio.play('horn')); // §19.4 (FR-62) 니어미스 경적
     this.applySeason('spring');
     this.models = { hero, bag, kickboard, bicycle, scooter };
     for (const [k, m] of Object.entries(this.models)) m.rotation.y = MODEL_YAW[k] ?? 0;
@@ -656,10 +662,10 @@ export class Game {
     this.codeMatch = null;
     this.ui.hideCodeMatch();
     this.delivery.confirmPickup(cm.d, correct ? 0 : 5);
-    if (!correct) {
-      this.ui.toast('영수증 불일치! 배달 시간 -5초', 1800);
-      this.audio.play('codeBad');
-    }
+    // §19.1 (FR-58/59) 대형 타이포 슬램 + 보이스 — 기존 오답 토스트 대체
+    this.ui.showSlam(correct);
+    this.audio.play(correct ? 'voiceSafe' : 'voiceWrong');
+    if (!correct) this.audio.play('codeBad');
   }
 
   // ── 인게임 이벤트 ──────────────────────────
@@ -696,6 +702,7 @@ export class Game {
     p.vel.z = fz * 16;
     p.vel.y = 5.5;
     this.ui.toast('빵빵!! 무자비한 차에 치였다 (-체력 1)', 1800);
+    this.ui.damageFlash(); // §19.2 플래시 재사용 (§13 확정)
     this.damage(1, 'crash');
   }
 
@@ -854,12 +861,15 @@ export class Game {
       const v = this.arrow.group.position.clone();
       v.y -= 0.55;
       v.project(this.cam.camera);
+      const lx = (v.x * 0.5 + 0.5) * this.ui.root.offsetWidth;
+      const ly = (-v.y * 0.5 + 0.5) * this.ui.root.offsetHeight;
       this.ui.setArrowLabel(
         urgent.phase === 'pickup' ? `${urgent.shop.name} 픽업` : `${urgent.door.name} 배달`,
-        color,
-        (v.x * 0.5 + 0.5) * this.ui.root.offsetWidth,
-        (-v.y * 0.5 + 0.5) * this.ui.root.offsetHeight,
+        color, lx, ly,
       );
+      // §19.5 (FR-63) 10초 이내 급박 건 카운트다운 — 튜토리얼 타이머 정지 중 미발동
+      if (urgent.timeLeft <= 10 && !this.tutorial) this.ui.setArrowCountdown(urgent.timeLeft, lx, ly);
+      else this.ui.setArrowCountdown(null);
     } else {
       this.arrow.hide();
       this.ui.setArrowLabel(null);
