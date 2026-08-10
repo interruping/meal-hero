@@ -233,7 +233,13 @@ export class Game {
     const save = this.loadSave();
     this.ui.showTitle({
       onStart: () => this.startOpening(),
-      onStage: (n) => { this.resetCareer(); this.startStage(n); },
+      // §16.6 심사용 직행: 앞 계절들이 각 1,500만(전체 빚 ÷ 4계절)씩 상환했다는
+      // 가정으로 빚 차감 — 겨울 직행 시 목표가 전체 빚 기준으로 과도해지는 문제 방지
+      onStage: (n) => {
+        this.resetCareer();
+        this.career.debt = TOTAL_DEBT - n * (TOTAL_DEBT / STAGES.length);
+        this.startStage(n);
+      },
       save,
       onContinue: save
         ? () => {
