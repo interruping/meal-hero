@@ -315,7 +315,9 @@ export function buildProps(world, scene, M) {
   bannerMat.side = THREE.DoubleSide;
   for (const [bx, bz] of [[0, 50], [-33, -10], [33, 20]]) {
     const y = H(bx, bz) + 4.2; // 카메라(높이 ~2.7)와 겹치지 않게
-    const banner = plane(5.6, 0.85, bannerMat);
+    // 텍스처는 밴드만 크롭된 2.7:1 (정방 원본은 회색 여백까지 렌더됐음) —
+    // plane 4:1로 가로 스트레치 1.5배 이내 유지
+    const banner = plane(5.2, 1.3, bannerMat);
     banner.position.set(bx, y, bz);
     banner.rotation.y = rng() < 0.5 ? 0.15 : -0.1;
     add('현수막', banner);
