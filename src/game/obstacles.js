@@ -159,7 +159,8 @@ class PaperPool {
       const dx = p.mesh.position.x - player.pos.x;
       const dy = p.mesh.position.y - (player.pos.y + 1);
       const dz = p.mesh.position.z - player.pos.z;
-      if (dx * dx + dy * dy + dz * dz < 0.55 * 0.55) {
+      // §17.7 (FR-53) 코드 매칭 중 무적 — 전단지가 그냥 통과
+      if (!player.invulnerable && dx * dx + dy * dy + dz * dz < 0.55 * 0.55) {
         p.life = 0;
         p.mesh.visible = false;
         player.applySlowdown(1.6);
@@ -212,7 +213,7 @@ class KidRider {
       return;
     }
     const d = player.pos.distanceTo(this.pos);
-    if (d < 1.3 && this.hitCooldown <= 0) {
+    if (d < 1.3 && this.hitCooldown <= 0 && !player.invulnerable) {
       this.hitCooldown = 2;
       player.applyStun(1.2);
       game.damage(1, 'kid');
@@ -325,7 +326,7 @@ class Drunk {
     this.model.position.copy(this.pos);
     this.model.rotation.y = this.heading;
     this.model.rotation.z = Math.sin(this.time * 2.1) * 0.12; // 비틀비틀
-    if (d < 1.4 && this.cooldown <= 0) {
+    if (d < 1.4 && this.cooldown <= 0 && !player.invulnerable) {
       this.cooldown = 3;
       player.applyReverse(2.5);
       this.game.damage(1, 'drunk');

@@ -661,6 +661,7 @@ export class Game {
   onCarHit(fx, fz) {
     const p = this.player;
     if (this.state !== 'playing') return;
+    if (this.codeMatch) return; // §17.7 (FR-53) 코드 매칭 중 무적
     if (p.time < (p.carHitCooldownUntil ?? 0)) return;
     p.carHitCooldownUntil = p.time + 1.2;
     p.flashUntil = p.time + 0.6;
@@ -722,6 +723,10 @@ export class Game {
         this.pauseGame();
       } else {
         this._hadLock = locked;
+        // §17.7 (FR-53) 수령 코드 매칭 중 이동 잠금 + 무적 — 종료 즉시 해제
+        const cmLock = !!this.codeMatch;
+        this.player.locked = cmLock;
+        this.player.invulnerable = cmLock;
         this.player.update(dt, this.input, this.cam.yaw);
         if (this.input.justPressed('KeyQ')) this.drinkEnergy();
         // 코드 매칭 중엔 1~4·E를 미니게임이 가져간다 (게임 자체는 계속 진행 — §12.5)

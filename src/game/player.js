@@ -57,6 +57,8 @@ export class Player {
     this.stunnedUntil = 0;
     this.dashUntil = 0;
     this.dashReadyAt = 0;
+    this.locked = false;
+    this.invulnerable = false;
   }
 
   // FR-27 에너지 드링크: 대시 쿨타임 즉시 초기화
@@ -77,6 +79,8 @@ export class Player {
     if (input.down('KeyD')) ix += 1;
     if (this.time < this.controlsReversedUntil) { ix = -ix; iz = -iz; }
     if (this.time < this.stunnedUntil) { ix = 0; iz = 0; }
+    // §17.7 (FR-53) 코드 매칭 중 잠금 — 입력 무시 + 수평 속도 즉시 0 (제자리 정지)
+    if (this.locked) { ix = 0; iz = 0; this.vel.x = 0; this.vel.z = 0; }
 
     const hasInput = ix !== 0 || iz !== 0;
     let dirX = 0, dirZ = 0;
@@ -114,7 +118,7 @@ export class Player {
 
     // 점프·중력
     const gh = this.world.groundHeight(this.pos.x, this.pos.z);
-    if (this.grounded && input.justPressed('Space') && this.time >= this.stunnedUntil) {
+    if (this.grounded && input.justPressed('Space') && this.time >= this.stunnedUntil && !this.locked) {
       this.vel.y = v.jumpVel;
       this.grounded = false;
       this.audio?.play('jump');
