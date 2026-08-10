@@ -75,8 +75,10 @@ export class DeliveryManager {
 
   spawnOffer(i) {
     // §17.3 (FR-49) 다른 슬롯에 노출 중인 가게 제외 — 같은 가게 의뢰 동시 노출 금지.
-    // 진행 중(active) 배달의 가게와는 중복 허용. 가게 14곳 ≥ 슬롯 4개라 풀은 항상 남는다
+    // §20.3 (FR-66) 픽업 대기 중(pickup 단계)인 가게도 제외 — 같은 식당 동시 2건 픽업 방지.
+    // 픽업 완료(carry) 후엔 재노출 허용. 가게 14곳 ≥ 슬롯 4 + 진행 3이라 풀은 항상 남는다
     const used = new Set(this.slots.filter(Boolean).map((o) => o.shop));
+    for (const d of this.active) if (d.phase === 'pickup') used.add(d.shop);
     const pool = this.world.shops.filter((s) => !used.has(s));
     const shop = pool[Math.floor(Math.random() * pool.length)];
     const door = this.world.doors[Math.floor(Math.random() * this.world.doors.length)];
